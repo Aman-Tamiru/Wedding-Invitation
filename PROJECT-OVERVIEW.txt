@@ -1,0 +1,44 @@
+WEDDING INVITATION WEBSITE — PROJECT OVERVIEW
+================================================
+Couple: Betslot Andualem Demissie & Amanuel Tamiru Gebre
+Wedding date: 19 November 2028
+Time: 8:00 PM (venue/event time supplied by the couple)
+City: Addis Ababa, Ethiopia
+Venue: Friendship Park
+Directions: https://maps.app.goo.gl/kYU3JdEeaFUVTqjx9?g_st=ic
+
+WHAT THIS PROJECT CONTAINS
+- Next.js website source code (App Router, React, TypeScript).
+- Invitation envelope opening experience and animated page sections.
+- Couple names, wedding countdown, Our Love Story and event information sections.
+- Location/directions section, schedule, dress code, accommodation and gift sections.
+- RSVP form and guest response management components.
+- Admin login and dashboard source files.
+- Supabase client integration and SQL migrations.
+- Music-player component; the actual MP3 has NOT been supplied and is not included.
+- The supplied engagement photograph is included at public/images/aman-and-betslot-engagement.jpg.
+
+OUR LOVE STORY COPY
+Some of life's most beautiful moments begin with two people finding their way into each other's lives. Amanuel and Betslot bring their own hopes and dreams together as they begin a shared journey.
+
+Built on love, patience, and understanding, their partnership is a promise to keep choosing one another through ordinary days, extraordinary moments, and every season still to come.
+
+They look forward to a lifetime of shared laughter, unforgettable memories, new adventures, and a love that grows stronger with every passing day.
+
+On November 19, 2028, surrounded by the people who mean the most to them, Amanuel and Betslot will celebrate the beginning of their next chapter. They would be honored to share this day with you.
+
+IMPORTANT PROJECT STATUS — NOT PRODUCTION READY
+This ZIP is a working handoff containing the supplied photo and revised story copy. It is NOT the fully completed, security-audited, deployed final website. In particular:
+1. Supabase row-level security and RSVP edit-token access must be corrected and tested before real guest data is collected.
+2. Admin authorization and staff-management policies must be reviewed and tested.
+3. The current admin dashboard is primarily for RSVP administration; a complete owner-only website-content editor has not been implemented/verified.
+4. The photo is integrated as supplied without AI face or ring alteration. It is displayed in the existing framed photo area; no generated background replacement has been applied.
+5. Music is not included. Add the couple's chosen licensed/owned MP3 only when provided and confirm its player path.
+6. The map directions link is part of the source, but embedded map rendering must be verified in a live browser.
+7. GitHub connection, production environment variables, hosting deployment and end-to-end production tests are not completed by this package.
+
+SECURITY
+- Do not publish .env or commit secrets.
+- Use Supabase's publishable/anon key only in browser code with correctly restrictive RLS.
+- Never put a Supabase service-role/secret key in NEXT_PUBLIC variables or client-side code.
+- Rotate any credential that may have been exposed in a shared archive or public repository.

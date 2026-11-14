@@ -1,0 +1,73 @@
+WINDOWS INSTALLATION & PUBLISHING GUIDE
+=======================================
+This guide opens the current working project locally. It does NOT mean the project is ready to publish to guests.
+
+A. REQUIRED APPS
+1. Install Node.js LTS from https://nodejs.org/ (includes npm).
+2. Install Cursor from https://cursor.com/.
+3. Create/sign in to GitHub at https://github.com/.
+4. Create/sign in to Supabase at https://supabase.com/.
+5. Create/sign in to Vercel at https://vercel.com/.
+
+B. OPEN THE PROJECT
+1. Download and extract Wedding-Invitation-FINAL-WORKING.zip.
+2. Open Cursor.
+3. Choose File > Open Folder.
+4. Select the extracted Wedding-Invitation folder (the folder containing package.json).
+5. In Cursor, open Terminal > New Terminal.
+6. Run: npm install
+7. Run: npm run dev
+8. Open http://localhost:3000 in your browser.
+
+C. ENVIRONMENT VARIABLES
+1. In the project root, create a file named .env.local.
+2. Add the correct values from your own Supabase project, matching the variable names used in lib/supabase-client.ts.
+3. Never paste secrets into chat, screenshots, GitHub, or frontend code.
+4. The current client reads NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Confirm these are the correct current project values in Supabase.
+5. A service-role key, if needed for trusted server-side administration, must remain server-only and must never use a NEXT_PUBLIC_ prefix.
+
+D. CHECKS BEFORE DEPLOYMENT
+1. Do not invite real guests until RSVP RLS policies have been reviewed and tested.
+2. Verify a guest cannot read, edit, or delete another guest's RSVP.
+3. Verify guests can edit only their own RSVP through a secure, unguessable token flow.
+4. Verify only the owner/admin can access the dashboard and staff-management actions.
+5. Verify the owner-only website content editor exists and works before relying on it. It is not complete/verified in this working package.
+6. Test every RSVP path: attending, declining, plus-ones, validation, edit, duplicate submission, and admin export.
+7. Test the map link and all sections on iPhone/Android-sized screens and desktop.
+8. Add the music file only after the couple supplies it and confirms usage rights.
+9. Run: npm run typecheck
+10. Run: npm run build
+11. Fix all build/type errors before deploying.
+
+E. GITHUB
+1. Create a new private GitHub repository for the project.
+2. In Cursor terminal, run: git init
+3. Run: git add .
+4. Run: git commit -m "Prepare wedding invitation website"
+5. Add the repository URL as origin using the URL GitHub gives you:
+   git remote add origin YOUR_GITHUB_REPOSITORY_URL
+6. Push using the branch name shown by GitHub, commonly:
+   git branch -M main
+   git push -u origin main
+7. Confirm .env.local is ignored by .gitignore before running git add. Never commit environment files.
+
+F. VERCEL DEPLOYMENT (ONLY AFTER SECURITY/TESTING)
+1. Sign in to Vercel.
+2. Choose Add New > Project and import the private GitHub repository.
+3. Set the framework to Next.js if it is not detected automatically.
+4. Add the required environment variables in Vercel Project Settings > Environment Variables.
+5. Deploy and wait for the build to finish.
+6. Open the generated production URL and test it as a guest and as the owner.
+7. Configure the final domain if desired, then test the domain again.
+
+G. KEEPING THE SITE EDITABLE
+The current source includes an RSVP-focused admin dashboard. A complete owner-only content editor for editing all invitation text, images, schedule, venue details and other page content has not been implemented/verified. Do not assume that ordinary invitation content can already be changed from the dashboard. That feature must be completed before this requirement is considered satisfied.
+
+H. WEDDING DETAILS TO VERIFY
+Bride: Betslot Andualem Demissie
+Groom: Amanuel Tamiru Gebre
+Date: 2028-11-19
+Time: 8:00 PM
+Venue: Friendship Park, Addis Ababa, Ethiopia
+Maps: https://maps.app.goo.gl/kYU3JdEeaFUVTqjx9?g_st=ic
+Confirm the exact schedule, dress code, accommodation recommendations and gift details before publishing.
