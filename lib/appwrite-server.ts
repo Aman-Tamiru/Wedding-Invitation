@@ -59,18 +59,21 @@ export function createAdminClient() {
   };
 }
 
+
 export function createLoginClient() {
-  const config = getConfig();
-
-  const client = new Client()
-    .setEndpoint(config.endpoint)
-    .setProject(config.projectId);
-
-  return {
-    client,
-    account: new Account(client),
-  };
-}
+    const config = getConfig();
+  
+    const client = new Client()
+      .setEndpoint(config.endpoint)
+      .setProject(config.projectId)
+      .setKey(config.apiKey);
+  
+    return {
+      client,
+      account: new Account(client),
+    };
+  }
+  
 
 export function createSessionClient(sessionSecret: string) {
   const config = getConfig();

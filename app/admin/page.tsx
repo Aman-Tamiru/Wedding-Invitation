@@ -1,74 +1,84 @@
-'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Lock, Loader2, LogOut, Eye, EyeOff } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
-import { FloralSpray, FloralDivider } from '@/components/FloralDecorations';
+"use client";
+
+import { useState, useEffect, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
+import { FloralSpray, FloralDivider } from "@/components/FloralDecorations";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Check if user is an admin
-        const { data: adminData } = await supabase
-          .from('admin_staff')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
+    let active = true;
 
-        if (adminData) {
-          router.push('/admin/dashboard');
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/api/admin/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!active) return;
+
+        if (response.ok) {
+          router.replace("/admin/dashboard");
           return;
         }
+      } catch (err) {
+        console.error("Session check failed:", err);
       }
-      setCheckingSession(false);
+
+      if (active) {
+        setCheckingSession(false);
+      }
     };
+
     checkSession();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     setLoading(true);
     setError(null);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (authError) throw authError;
+      const result = await response.json();
 
-      // Check if user is an admin
-      const { data: adminData, error: adminError } = await supabase
-        .from('admin_staff')
-        .select('id, role, full_name')
-        .eq('user_id', authData.user.id)
-        .maybeSingle();
-
-      if (adminError) throw adminError;
-
-      if (!adminData) {
-        await supabase.auth.signOut();
-        setError('You do not have admin access. Please contact the owner.');
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Invalid credentials. Please try again."
+        );
       }
 
-      router.push('/admin/dashboard');
-    } catch (err: any) {
-      setError(err?.message || 'Invalid credentials. Please try again.');
+      router.replace("/admin/dashboard");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to sign in. Please try again."
+      );
       setLoading(false);
     }
   };
@@ -84,6 +94,7 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       <div className="absolute inset-0 watercolor-texture" />
+
       <FloralSpray className="absolute top-8 left-4 w-28 h-28 opacity-50" />
       <FloralSpray className="absolute top-8 right-4 w-28 h-28 opacity-50" flip />
       <FloralSpray className="absolute bottom-8 left-4 w-28 h-28 opacity-50" />
@@ -100,43 +111,62 @@ export default function AdminLoginPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blush-light border border-blush-deep/30 mb-4">
               <Lock className="w-8 h-8 text-blush-deep" />
             </div>
-            <h1 className="font-script text-4xl text-blush-deep">Admin Login</h1>
+
+            <h1 className="font-script text-4xl text-blush-deep">
+              Admin Login
+            </h1>
+
             <p className="font-body text-xs tracking-[0.3em] uppercase text-ink-light mt-2">
               Betslot &amp; Amanuel Wedding
             </p>
+
             <FloralDivider className="mt-4" />
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block font-body text-sm text-ink mb-1.5">Email</label>
+              <label className="block font-body text-sm text-ink mb-1.5">
+                Email
+              </label>
+
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="admin@email.com"
+                autoComplete="username"
                 className="w-full rounded-lg border border-blush-deep/30 bg-ivory px-4 py-2.5 font-body text-sm text-ink focus:outline-none focus:ring-2 focus:ring-blush-deep/30"
               />
             </div>
 
             <div>
-              <label className="block font-body text-sm text-ink mb-1.5">Password</label>
+              <label className="block font-body text-sm text-ink mb-1.5">
+                Password
+              </label>
+
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full rounded-lg border border-blush-deep/30 bg-ivory px-4 py-2.5 pr-10 font-body text-sm text-ink focus:outline-none focus:ring-2 focus:ring-blush-deep/30"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-light hover:text-blush-deep"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -158,7 +188,7 @@ export default function AdminLoginPage() {
                   Signing in...
                 </>
               ) : (
-                'Sign In'
+                "Sign In"
               )}
             </button>
           </form>
