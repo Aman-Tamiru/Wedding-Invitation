@@ -18,6 +18,8 @@ function getConfig() {
   const databaseId = process.env.APPWRITE_DATABASE_ID;
   const rsvpTableId = process.env.APPWRITE_RSVP_TABLE_ID;
   const adminTableId = process.env.APPWRITE_ADMIN_TABLE_ID;
+  const invitationsTableId =
+    process.env.APPWRITE_INVITATIONS_TABLE_ID;
 
   if (
     !endpoint ||
@@ -25,9 +27,12 @@ function getConfig() {
     !apiKey ||
     !databaseId ||
     !rsvpTableId ||
-    !adminTableId
+    !adminTableId ||
+    !invitationsTableId
   ) {
-    throw new Error("Appwrite server environment variables are incomplete.");
+    throw new Error(
+      "Appwrite server environment variables are incomplete."
+    );
   }
 
   return {
@@ -37,6 +42,7 @@ function getConfig() {
     databaseId,
     rsvpTableId,
     adminTableId,
+    invitationsTableId,
   };
 }
 
@@ -59,21 +65,24 @@ export function createAdminClient() {
   };
 }
 
-
 export function createLoginClient() {
-    const config = getConfig();
-  
-    const client = new Client()
-      .setEndpoint(config.endpoint)
-      .setProject(config.projectId)
-      .setKey(config.apiKey);
-  
-    return {
-      client,
-      account: new Account(client),
-    };
+  const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+  const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+
+  if (!endpoint || !projectId) {
+    throw new Error("Appwrite login configuration is incomplete.");
   }
-  
+
+  // Password authentication uses the user's credentials, never the server API key.
+  const client = new Client()
+    .setEndpoint(endpoint)
+    .setProject(projectId);
+
+  return {
+    client,
+    account: new Account(client),
+  };
+}
 
 export function createSessionClient(sessionSecret: string) {
   const config = getConfig();

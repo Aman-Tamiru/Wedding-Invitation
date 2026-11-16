@@ -1,0 +1,16 @@
+WEDDING INVITATION SOURCE UPDATE — 15 NOVEMBER 2026
+
+Included updates:
+- Corrected the Appwrite email/password login client so it does not send the privileged server API key to the Account authentication endpoint.
+- Removed invalid guest-session cleanup calls made through the unauthenticated Account client.
+- Migrated the public RSVP form's create, edit, and lookup operations from direct Supabase queries to the existing protected Appwrite-backed /api/rsvp routes.
+- Added a Next.js PWA manifest and full-bleed couple-photo app icons (192, 512, 180, 167, and 152 pixels).
+- Added a discreet Admin Access link at the bottom-right of the public footer.
+- Changed the existing falling-petal animation glyphs to subtle falling hearts while preserving the animation system.
+- Kept the original engagement photo filename and path unchanged.
+
+Important remaining work:
+- This archive is not yet the complete redesign requested. The full English–Amharic localization (including every public form message and all admin screens) has not yet been implemented.
+- The continuous page-wide couple watermarks have not yet been implemented. The supplied photo is the original beach photo only; it does not include a transparent couple cutout. To meet the exact requirement without altering either person's face, a carefully verified transparent cutout is still needed. No generated/recreated faces were substituted.
+- No production credentials are included. Keep your local .env files private and do not upload API keys or passwords.
+- Dependency installation and a full Next.js build were not run in this environment because node_modules were not included and network access is unavailable. Run the project checks locally after extracting this archive.

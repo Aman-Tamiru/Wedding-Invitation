@@ -1,213 +1,435 @@
 
-import { randomBytes } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { createAdminClient, ID, Query } from "@/lib/appwrite-server";
+import { randomBytes } from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createAdminClient, ID, Query } from '@/lib/appwrite-server';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 const rsvpSchema = z.object({
+  invitation_code: z.string().trim().max(16).optional(),
   full_name: z.string().trim().min(2).max(200),
   phone: z.string().trim().min(7).max(40),
-  email: z.union([z.string().trim().email().max(320), z.literal("")]).optional(),
+  email: z.string().trim().email().or(z.literal('')).optional(),
   attending: z.boolean(),
-  num_guests: z.coerce.number().int().min(0).max(10),
-  accompanying_names: z.string().max(2000).optional().default(""),
-  dietary_requirements: z.string().max(2000).optional().default(""),
-  message: z.string().max(5000).optional().default(""),
+  num_guests: z.number().int().min(0).max(10),
+  accompanying_names: z.string().max(2000).optional(),
+  dietary_requirements: z.string().max(2000).optional(),
+  message: z.string().max(5000).optional(),
 });
 
-type RsvpRow = Record<string, unknown>;
+const updateSchema = rsvpSchema.omit({ invitation_code: true });
+
+type RSVPInput = z.infer<typeof updateSchema>;
 
 function getDatabaseConfig() {
   const databaseId = process.env.APPWRITE_DATABASE_ID;
-  const tableId = process.env.APPWRITE_RSVP_TABLE_ID;
+  const rsvpTableId = process.env.APPWRITE_RSVP_TABLE_ID;
+  const invitationsTableId = process.env.APPWRITE_INVITATIONS_TABLE_ID;
 
-  if (!databaseId || !tableId) {
-    throw new Error("RSVP database configuration is missing.");
+  if (!databaseId || !rsvpTableId || !invitationsTableId) {
+    throw new Error('RSVP database configuration is incomplete.');
   }
 
-  return { databaseId, tableId };
+  return { databaseId, rsvpTableId, invitationsTableId };
 }
 
-function publicRsvp(row: RsvpRow) {
+function normalizeName(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function validToken(token: unknown): token is string {
+  return typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
+}
+
+function publicRsvp(row: Record<string, any>) {
   return {
-    id: row.$id,
-    created_at: row.$createdAt,
-    updated_at: row.$updatedAt,
     full_name: row.full_name,
     phone: row.phone,
-    email: row.email,
+    email: row.email || '',
     attending: row.attending,
-    num_guests: row.num_guests,
-    accompanying_names: row.accompanying_names,
-    dietary_requirements: row.dietary_requirements,
-    message: row.message,
+    num_guests: row.num_guests || 0,
+    accompanying_names: row.accompanying_names || '',
+    dietary_requirements: row.dietary_requirements || '',
+    message: row.message || '',
   };
 }
 
-function validToken(token: string | null) {
-  return !!token && /^[a-f0-9]{64}$/i.test(token);
-}
-
-async function findRsvpByToken(token: string) {
-  const { databaseId, tableId } = getDatabaseConfig();
-  const { tables } = createAdminClient();
-
+async function findRsvpByToken(
+  tables: any,
+  databaseId: string,
+  rsvpTableId: string,
+  token: string
+) {
   const result = await tables.listRows({
     databaseId,
-    tableId,
-    queries: [
-      Query.equal("edit_token", token),
-      Query.limit(1),
-    ],
+    tableId: rsvpTableId,
+    queries: [Query.equal('edit_token', token), Query.limit(1)],
   });
 
-  return result.rows[0] as RsvpRow | undefined;
+  return result.rows?.[0] || null;
 }
 
-// Retrieve one RSVP using its private edit token.
-export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token");
+async function rollbackTransaction(tables: any, transactionId: string) {
+  try {
+    await tables.updateTransaction({
+      transactionId,
+      rollback: true,
+    });
+  } catch {
+    // A transaction that has already failed or expired may not need rollback.
+  }
+}
 
-  if (!token || !validToken(token)) {
+function errorResponse(error: unknown) {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? Number((error as { code: unknown }).code)
+      : 0;
+
+  console.error('RSVP API error:', error);
+
+  if (code === 409) {
     return NextResponse.json(
-      { error: "A valid edit token is required." },
-      { status: 400 }
+      {
+        error:
+          'This invitation has just been used or updated. Please refresh and try again.',
+      },
+      { status: 409 }
     );
   }
 
+  return NextResponse.json(
+    { error: 'Something went wrong. Please try again later.' },
+    { status: 500 }
+  );
+}
+
+/**
+ * GET: Retrieve an existing RSVP using its private edit token.
+ */
+export async function GET(request: NextRequest) {
   try {
-    const row = await findRsvpByToken(token);
+    const token = request.nextUrl.searchParams.get('token');
+
+    if (!validToken(token)) {
+      return NextResponse.json(
+        { error: 'A valid response code is required.' },
+        { status: 400 }
+      );
+    }
+
+    const { databaseId, rsvpTableId } = getDatabaseConfig();
+    const { tables } = createAdminClient();
+
+    const row = await findRsvpByToken(
+      tables,
+      databaseId,
+      rsvpTableId,
+      token
+    );
 
     if (!row) {
       return NextResponse.json(
-        { error: "No RSVP was found for this edit token." },
+        { error: 'No response was found with that code.' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({ rsvp: publicRsvp(row) });
   } catch (error) {
-    console.error("RSVP lookup failed:", error);
-
-    return NextResponse.json(
-      { error: "Unable to retrieve your RSVP. Please try again." },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }
 
-// Create a new RSVP.
+/**
+ * POST: Create an RSVP only for an existing, preapproved invitation.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = rsvpSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Please check your RSVP details.",
+          error: 'Please check your RSVP details and try again.',
           details: parsed.error.flatten().fieldErrors,
         },
         { status: 400 }
       );
     }
 
-    const { databaseId, tableId } = getDatabaseConfig();
+    const input = parsed.data;
+    const invitationCode = input.invitation_code
+      ?.trim()
+      .toUpperCase();
+
+    if (!invitationCode) {
+      return NextResponse.json(
+        { error: 'Your invitation code is required.' },
+        { status: 400 }
+      );
+    }
+
+    const { databaseId, rsvpTableId, invitationsTableId } =
+      getDatabaseConfig();
+
     const { tables } = createAdminClient();
 
-    const editToken = randomBytes(32).toString("hex");
-    const data = {
-      ...parsed.data,
-      email: parsed.data.email ?? "",
+    const invitationResult = await tables.listRows({
+      databaseId,
+      tableId: invitationsTableId,
+      queries: [
+        Query.equal('invitation_code', invitationCode),
+        Query.limit(1),
+      ],
+    });
+
+    const invitation = invitationResult.rows?.[0];
+
+    if (!invitation) {
+      return NextResponse.json(
+        {
+          error:
+            'We could not find that invitation code. Please check your invitation.',
+        },
+        { status: 404 }
+      );
+    }
+
+    if (
+      normalizeName(input.full_name) !==
+        normalizeName(invitation.full_name || '') ||
+      normalizePhone(input.phone) !==
+        normalizePhone(invitation.phone || '')
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Your name or phone number does not match the invitation. Please enter the details provided by the couple.',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (invitation.status !== 'invited') {
+      return NextResponse.json(
+        {
+          error:
+            invitation.status === 'responded'
+              ? 'An RSVP has already been submitted for this invitation.'
+              : 'This invitation is not currently available for RSVP.',
+        },
+        { status: 409 }
+      );
+    }
+
+    if (invitation.rsvp_id) {
+      return NextResponse.json(
+        {
+          error:
+            'An RSVP is already associated with this invitation. Please use your response code to edit it.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const editToken = randomBytes(32).toString('hex');
+    const qrToken = randomBytes(32).toString('hex');
+    const rsvpId = ID.unique();
+
+    const {
+      invitation_code: _invitationCode,
+      ...submittedFields
+    } = input;
+
+    const rsvpData = {
+      ...submittedFields,
+      email: input.email || '',
+      num_guests: input.attending ? input.num_guests : 0,
+      accompanying_names: input.accompanying_names || '',
+      dietary_requirements: input.dietary_requirements || '',
+      message: input.message || '',
       edit_token: editToken,
     };
 
-    const row = await tables.createRow({
-      databaseId,
-      tableId,
-      rowId: ID.unique(),
-      data,
-    });
+    const transaction = await tables.createTransaction();
+
+    try {
+      // Stage creation of the RSVP.
+      await tables.createRow({
+        databaseId,
+        tableId: rsvpTableId,
+        rowId: rsvpId,
+        data: rsvpData,
+        transactionId: transaction.$id,
+      });
+
+      // Stage the invitation claim in the same transaction.
+      await tables.updateRow({
+        databaseId,
+        tableId: invitationsTableId,
+        rowId: invitation.$id,
+        data: {
+          status: 'responded',
+          qr_token: qrToken,
+          attending: input.attending,
+          num_guests: input.attending ? input.num_guests : 0,
+          accompanying_names: input.accompanying_names || '',
+          dietary_requirements: input.dietary_requirements || '',
+          message: input.message || '',
+          rsvp_id: rsvpId,
+        },
+        transactionId: transaction.$id,
+      });
+
+      // Both operations become permanent together.
+      await tables.updateTransaction({
+        transactionId: transaction.$id,
+        commit: true,
+      });
+    } catch (error) {
+      await rollbackTransaction(tables, transaction.$id);
+      throw error;
+    }
 
     return NextResponse.json(
       {
         success: true,
         edit_token: editToken,
-        rsvp: publicRsvp(row as unknown as RsvpRow),
+        qr_token: qrToken,
+        rsvp: publicRsvp(rsvpData),
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("RSVP submission failed:", error);
-
-    return NextResponse.json(
-      { error: "Unable to submit your RSVP. Please try again." },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }
 
-// Update only the RSVP associated with the supplied private token.
+/**
+ * PATCH: Edit an existing RSVP using its private edit token.
+ */
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
-    const token = typeof body.edit_token === "string"
-      ? body.edit_token.trim()
-      : "";
+    const body = await request.json().catch(() => null);
 
-    if (!validToken(token)) {
+    if (!body || typeof body !== 'object') {
       return NextResponse.json(
-        { error: "A valid edit token is required." },
+        { error: 'Invalid request.' },
         { status: 400 }
       );
     }
 
-    const parsed = rsvpSchema.safeParse(body);
+    const token = (body as Record<string, unknown>).edit_token;
+
+    if (!validToken(token)) {
+      return NextResponse.json(
+        { error: 'A valid response code is required.' },
+        { status: 400 }
+      );
+    }
+
+    const parsed = updateSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Please check your RSVP details.",
+          error: 'Please check your RSVP details and try again.',
           details: parsed.error.flatten().fieldErrors,
         },
         { status: 400 }
       );
     }
 
-    const existing = await findRsvpByToken(token);
+    const { databaseId, rsvpTableId, invitationsTableId } =
+      getDatabaseConfig();
 
-    if (!existing || typeof existing.$id !== "string") {
+    const { tables } = createAdminClient();
+
+    const existing = await findRsvpByToken(
+      tables,
+      databaseId,
+      rsvpTableId,
+      token
+    );
+
+    if (!existing) {
       return NextResponse.json(
-        { error: "No RSVP was found for this edit token." },
+        { error: 'No response was found with that code.' },
         { status: 404 }
       );
     }
 
-    const { databaseId, tableId } = getDatabaseConfig();
-    const { tables } = createAdminClient();
+    const input: RSVPInput = parsed.data;
 
-    const updated = await tables.updateRow({
+    const updateData = {
+      ...input,
+      email: input.email || '',
+      num_guests: input.attending ? input.num_guests : 0,
+      accompanying_names: input.accompanying_names || '',
+      dietary_requirements: input.dietary_requirements || '',
+      message: input.message || '',
+    };
+
+    const invitationResult = await tables.listRows({
       databaseId,
-      tableId,
-      rowId: existing.$id,
-      data: {
-        ...parsed.data,
-        email: parsed.data.email ?? "",
-      },
+      tableId: invitationsTableId,
+      queries: [
+        Query.equal('rsvp_id', existing.$id),
+        Query.limit(1),
+      ],
     });
+
+    const invitation = invitationResult.rows?.[0] || null;
+
+    const transaction = await tables.createTransaction();
+
+    try {
+      await tables.updateRow({
+        databaseId,
+        tableId: rsvpTableId,
+        rowId: existing.$id,
+        data: updateData,
+        transactionId: transaction.$id,
+      });
+
+      if (invitation && invitation.status === 'responded') {
+        await tables.updateRow({
+          databaseId,
+          tableId: invitationsTableId,
+          rowId: invitation.$id,
+          data: {
+            attending: input.attending,
+            num_guests: input.attending ? input.num_guests : 0,
+            accompanying_names: input.accompanying_names || '',
+            dietary_requirements: input.dietary_requirements || '',
+            message: input.message || '',
+          },
+          transactionId: transaction.$id,
+        });
+      }
+
+      await tables.updateTransaction({
+        transactionId: transaction.$id,
+        commit: true,
+      });
+    } catch (error) {
+      await rollbackTransaction(tables, transaction.$id);
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      rsvp: publicRsvp(updated as unknown as RsvpRow),
+      edit_token: token,
+      rsvp: publicRsvp(updateData),
     });
   } catch (error) {
-    console.error("RSVP update failed:", error);
-
-    return NextResponse.json(
-      { error: "Unable to update your RSVP. Please try again." },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

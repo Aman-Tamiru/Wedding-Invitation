@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createAdminClient,
   createLoginClient,
+  createSessionClient,
   getSessionCookieName,
   Query,
 } from "@/lib/appwrite-server";
@@ -31,13 +32,20 @@ export async function POST(request: NextRequest) {
       password,
     });
 
+    const sessionSecret = (
+      session as typeof session & { secret?: string }
+    ).secret;
+
+    if (!sessionSecret) {
+      throw new Error("Appwrite did not return a session secret.");
+    }
+
     const { tables } = createAdminClient();
 
     const databaseId = process.env.APPWRITE_DATABASE_ID;
     const tableId = process.env.APPWRITE_ADMIN_TABLE_ID;
 
     if (!databaseId || !tableId) {
-      await account.deleteSession({ sessionId: session.$id });
       throw new Error("Admin database configuration is missing.");
     }
 
@@ -53,7 +61,13 @@ export async function POST(request: NextRequest) {
     const admin = result.rows[0];
 
     if (!admin) {
-      await account.deleteSession({ sessionId: session.$id });
+      // Do not leave a valid Appwrite session behind for a non-admin account.
+      try {
+        const { account: sessionAccount } = createSessionClient(sessionSecret);
+        await sessionAccount.deleteSession({ sessionId: "current" });
+      } catch (cleanupError) {
+        console.error("Could not revoke non-admin login session:", cleanupError);
+      }
 
       return NextResponse.json(
         {
@@ -61,16 +75,6 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       );
-    }
-
-    const sessionSecret = (
-      session as typeof session & { secret?: string }
-    ).secret;
-
-    if (!sessionSecret) {
-      
-
-      throw new Error("Appwrite did not return a session secret.");
     }
 
     const response = NextResponse.json({

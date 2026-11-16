@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, Clock, MapPin } from 'lucide-react';
-import { CouplePhoto } from './CouplePhoto';
 import { FloralDivider, FloralSpray, SectionReveal } from './FloralDecorations';
 
 export function HeroSection({ onRSVP }: { onRSVP: () => void }) {
@@ -76,16 +75,6 @@ export function HeroSection({ onRSVP }: { onRSVP: () => void }) {
             <MapPin className="w-5 h-5 text-blush-deep" />
             <span className="font-serif-display text-xl md:text-2xl">Friendship Park, Addis Ababa</span>
           </div>
-        </motion.div>
-
-        {/* Couple photo */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, delay: 1.2 }}
-          className="mt-12"
-        >
-          <CouplePhoto />
         </motion.div>
 
         {/* Invitation message */}

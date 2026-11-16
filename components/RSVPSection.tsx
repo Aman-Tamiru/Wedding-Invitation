@@ -1,520 +1,346 @@
+
 'use client';
 
-import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { CheckCircle2, Loader2, Mail, Phone, User, Users, Utensils, Heart, Edit3 } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
-import { SectionReveal, FloralDivider, FloralSpray, CornerOrnament } from './FloralDecorations';
+import { FormEvent, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  CheckCircle2,
+  Heart,
+  Loader2,
+  Mail,
+  Phone,
+  Ticket,
+  User,
+  Users,
+  ExternalLink,
+} from 'lucide-react';
 
-const rsvpSchema = z.object({
-  full_name: z.string().min(2, 'Please enter your full name'),
-  phone: z.string().min(7, 'Please enter a valid phone number'),
-  email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
-  attending: z.boolean({ required_error: 'Please select yes or no' }),
-  num_guests: z.number().min(0).max(10, 'Maximum 10 accompanying guests'),
-  accompanying_names: z.string().optional(),
-  dietary_requirements: z.string().optional(),
-  message: z.string().optional(),
-});
+interface RegisteredGuest {
+  full_name: string;
+  invitation_url: string;
+}
 
-type RSVPSchema = z.infer<typeof rsvpSchema>;
-
-interface RSVPSuccess {
-  name: string;
-  attending: boolean;
-  editToken: string;
+interface RegistrationResult {
+  guests: RegisteredGuest[];
 }
 
 export function RSVPSection() {
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [companionName, setCompanionName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<RSVPSuccess | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [editTokenInput, setEditTokenInput] = useState('');
-  const [editData, setEditData] = useState<RSVPSchema | null>(null);
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState('');
+  const [registeredGuests, setRegisteredGuests] = useState<
+    RegisteredGuest[] | null
+  >(null);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<RSVPSchema>({
-    resolver: zodResolver(rsvpSchema),
-    defaultValues: {
-      full_name: '',
-      phone: '',
-      email: '',
-      attending: undefined,
-      num_guests: 0,
-      accompanying_names: '',
-      dietary_requirements: '',
-      message: '',
-    },
-  });
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
 
-  const attending = watch('attending');
+    if (fullName.trim().length < 2) {
+      setError('Please enter your full name.');
+      return;
+    }
 
-  const onSubmit = async (data: RSVPSchema) => {
+    if (
+      companionName.trim() &&
+      companionName.trim().toLowerCase() === fullName.trim().toLowerCase()
+    ) {
+      setError('The companion must have a different name.');
+      return;
+    }
+
     setSubmitting(true);
-    setError(null);
 
     try {
-      if (editMode && editData) {
-        // Update existing response
-        const { error: updateError } = await supabase
-          .from('rsvp_responses')
-          .update({
-            full_name: data.full_name,
-            phone: data.phone,
-            email: data.email || null,
-            attending: data.attending,
-            num_guests: data.num_guests,
-            accompanying_names: data.accompanying_names || null,
-            dietary_requirements: data.dietary_requirements || null,
-            message: data.message || null,
-          })
-          .eq('edit_token', editTokenInput);
+      const response = await fetch('/api/guests/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          companion_name: companionName.trim(),
+        }),
+      });
 
-        if (updateError) throw updateError;
+      const result = await response.json();
 
-        setSuccess({
-          name: data.full_name,
-          attending: data.attending,
-          editToken: editTokenInput,
-        });
-        setEditMode(false);
-        setEditData(null);
-        reset();
-      } else {
-        // Insert new response
-        const { data: insertData, error: insertError } = await supabase
-          .from('rsvp_responses')
-          .insert({
-            full_name: data.full_name,
-            phone: data.phone,
-            email: data.email || null,
-            attending: data.attending,
-            num_guests: data.attending ? data.num_guests : 0,
-            accompanying_names: data.accompanying_names || null,
-            dietary_requirements: data.dietary_requirements || null,
-            message: data.message || null,
-          })
-          .select('edit_token')
-          .single();
-
-        if (insertError) throw insertError;
-
-        setSuccess({
-          name: data.full_name,
-          attending: data.attending,
-          editToken: insertData.edit_token,
-        });
-        reset();
+      if (!response.ok) {
+        throw new Error(
+          result.error || 'Registration could not be completed.'
+        );
       }
+
+      if (
+        !Array.isArray(result.guests) ||
+        result.guests.length === 0
+      ) {
+        throw new Error(
+          'Registration was received, but invitation links were not returned. Please contact the couple.'
+        );
+      }
+
+      setRegisteredGuests(result.guests as RegisteredGuest[]);
     } catch (err) {
-      setError('Something went wrong. Please try again or contact us directly.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please try again.'
+      );
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const handleEditLookup = async () => {
-    if (!editTokenInput.trim()) return;
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const { data, error: lookupError } = await supabase
-        .from('rsvp_responses')
-        .select('*')
-        .eq('edit_token', editTokenInput.trim())
-        .maybeSingle();
-
-      if (lookupError) throw lookupError;
-      if (!data) {
-        setError('No response found with that code. Please check and try again.');
-        return;
-      }
-
-      setEditMode(true);
-      setEditData(data);
-      setValue('full_name', data.full_name);
-      setValue('phone', data.phone);
-      setValue('email', data.email || '');
-      setValue('attending', data.attending);
-      setValue('num_guests', data.num_guests);
-      setValue('accompanying_names', data.accompanying_names || '');
-      setValue('dietary_requirements', data.dietary_requirements || '');
-      setValue('message', data.message || '');
-    } catch {
-      setError('Could not find your response. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReset = () => {
-    setSuccess(null);
-    setEditMode(false);
-    setEditData(null);
-    setEditTokenInput('');
-    setError(null);
-    reset();
-  };
+  function resetForm() {
+    setFullName('');
+    setPhone('');
+    setEmail('');
+    setCompanionName('');
+    setError('');
+    setRegisteredGuests(null);
+  }
 
   return (
-    <SectionReveal
+    <section
       id="rsvp"
-      className="relative py-24 md:py-32 overflow-hidden scroll-mt-20"
+      className="relative overflow-hidden py-24 md:py-32 scroll-mt-20"
     >
       <div className="absolute inset-0 watercolor-texture" />
-      <FloralSpray className="absolute top-8 left-0 w-32 h-32 opacity-50" />
-      <FloralSpray className="absolute bottom-8 right-0 w-32 h-32 opacity-50" flip />
 
-      <div ref={sectionRef} className="relative z-10 max-w-2xl mx-auto px-6 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blush-light border border-blush-deep/30 mb-6">
-          <Heart className="w-7 h-7 text-blush-deep" fill="currentColor" />
+      <div className="relative z-10 mx-auto max-w-2xl px-5 text-center">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-blush-deep/30 bg-blush-light">
+          <Heart
+            className="h-7 w-7 text-blush-deep"
+            fill="currentColor"
+          />
         </div>
 
-        <p className="font-body text-xs tracking-[0.4em] uppercase text-ink-light mb-3">
+        <p className="mb-3 font-body text-xs uppercase tracking-[0.4em] text-ink-light">
           Will You Join Us?
         </p>
-        <h2 className="font-script text-4xl md:text-6xl text-blush-deep mb-2">
+
+        <h2 className="mb-3 font-script text-4xl text-blush-deep md:text-6xl">
           RSVP
         </h2>
-        <FloralDivider className="mb-8" />
 
-        <AnimatePresence mode="wait">
-          {/* Success state */}
-          {success && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-gradient-to-br from-ivory to-blush-light/50 rounded-3xl p-8 md:p-12 border border-gold/30 shadow-lg"
+        <div className="mx-auto mb-8 h-px w-28 bg-gold" />
+
+        {registeredGuests ? (
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl border border-gold/30 bg-gradient-to-br from-ivory to-blush-light/50 p-7 shadow-lg md:p-10"
+          >
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full border-2 border-blush-deep/30 bg-blush-light">
+              <CheckCircle2 className="h-10 w-10 text-blush-deep" />
+            </div>
+
+            <h3 className="mb-3 font-script text-3xl text-blush-deep md:text-4xl">
+              Registration Successful!
+            </h3>
+
+            <p className="mb-7 font-serif-display text-lg italic text-ink">
+              Thank you for registering. Your personal wedding invitation
+              is ready.
+            </p>
+
+            <div className="space-y-4 text-left">
+              {registeredGuests.map((guest, index) => (
+                <div
+                  key={`${guest.invitation_url}-${index}`}
+                  className="rounded-2xl border border-gold/25 bg-white/80 p-5"
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <Ticket className="h-5 w-5 text-blush-deep" />
+                    <p className="font-body text-sm font-semibold text-ink">
+                      {guest.full_name}
+                    </p>
+                  </div>
+
+                  <p className="mb-4 text-xs leading-relaxed text-ink-light">
+                    This is the personal invitation for this guest.
+                    Keep the link private and present its QR code at the
+                    wedding entrance.
+                  </p>
+
+                  <a
+                    href={guest.invitation_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-blush-deep px-5 py-3 font-body text-sm text-ivory transition-colors hover:bg-blush-deep/85"
+                  >
+                    Open Personal Invitation
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-6 text-xs leading-relaxed text-ink-light">
+              Each registered guest has a separate invitation and QR
+              code. Please do not share your personal invitation link.
+            </p>
+
+            <button
+              type="button"
+              onClick={resetForm}
+              className="mt-7 font-body text-sm text-blush-deep underline transition-colors hover:text-primary"
             >
-              <CornerOrnament className="absolute -top-3 -left-3 w-12 h-12 opacity-70" />
-              <CornerOrnament className="absolute -top-3 -right-3 w-12 h-12 opacity-70" flip />
-
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: 'spring' }}
-                className="w-20 h-20 rounded-full bg-blush-light border-2 border-blush-deep/30 flex items-center justify-center mx-auto mb-6"
-              >
-                <CheckCircle2 className="w-10 h-10 text-blush-deep" />
-              </motion.div>
-
-              <h3 className="font-script text-3xl md:text-4xl text-blush-deep mb-3">
-                Thank You, {success.name.split(' ')[0]}!
+              Register another guest
+            </button>
+          </motion.div>
+        ) : (
+          <div className="rounded-3xl border border-gold/20 bg-gradient-to-br from-ivory to-blush-light/40 p-6 text-left shadow-md md:p-10">
+            <div className="mb-7 text-center">
+              <h3 className="font-serif-display text-xl text-ink">
+                Tell us you're coming
               </h3>
-              <p className="font-serif-display text-lg text-ink italic mb-6">
-                {success.attending
-                  ? 'We can\'t wait to celebrate with you!'
-                  : 'We\'ll miss you, but thank you for letting us know.'}
+              <p className="mt-2 text-sm leading-relaxed text-ink-light">
+                Complete the details below to receive your personal
+                wedding invitation and entrance QR code.
               </p>
+            </div>
 
-              <div className="bg-blush-light/50 rounded-xl p-4 mb-6 text-left">
-                <p className="font-body text-xs text-ink-light mb-1 tracking-wider uppercase">
-                  Your Response Code
-                </p>
-                <p className="font-mono text-sm text-ink break-all">{success.editToken}</p>
-                <p className="font-body text-xs text-ink-light mt-2">
-                  Save this code to edit your response later.
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label
+                  htmlFor="guest-full-name"
+                  className="mb-2 block font-body text-sm text-ink"
+                >
+                  Full Name *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-blush-deep" />
+                  <input
+                    id="guest-full-name"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={200}
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    placeholder="Your full name"
+                    className="form-input w-full pl-11"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="guest-phone"
+                    className="mb-2 block font-body text-sm text-ink"
+                  >
+                    Phone Number (optional)
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-blush-deep" />
+                    <input
+                      id="guest-phone"
+                      type="tel"
+                      maxLength={40}
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="+251 ..."
+                      className="form-input w-full pl-11"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="guest-email"
+                    className="mb-2 block font-body text-sm text-ink"
+                  >
+                    Email Address (optional)
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-blush-deep" />
+                    <input
+                      id="guest-email"
+                      type="email"
+                      maxLength={320}
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="your@email.com"
+                      className="form-input w-full pl-11"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="guest-companion"
+                  className="mb-2 block font-body text-sm text-ink"
+                >
+                  Companion's Full Name (optional)
+                </label>
+                <div className="relative">
+                  <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-blush-deep" />
+                  <input
+                    id="guest-companion"
+                    type="text"
+                    maxLength={200}
+                    value={companionName}
+                    onChange={(event) =>
+                      setCompanionName(event.target.value)
+                    }
+                    placeholder="Enter your companion's full name"
+                    className="form-input w-full pl-11"
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-ink-light">
+                  If you register a companion, they will receive a
+                  separate invitation and entrance QR code.
                 </p>
               </div>
 
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+
               <button
-                onClick={handleReset}
-                className="font-body text-sm text-blush-deep hover:text-primary transition-colors underline"
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-blush-deep px-6 py-4 font-body text-sm font-semibold tracking-wide text-ivory shadow-md transition-all hover:bg-blush-deep/85 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit another response
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    <Heart className="h-4 w-4" />
+                    Register & Receive My Invitation
+                  </>
+                )}
               </button>
-            </motion.div>
-          )}
 
-          {/* Form state */}
-          {!success && (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative bg-gradient-to-br from-ivory to-blush-light/40 rounded-3xl p-6 md:p-10 border border-gold/20 shadow-md text-left"
-            >
-              {/* Edit mode toggle */}
-              {!editMode && (
-                <div className="mb-6 flex items-center justify-between">
-                  <p className="font-serif-display text-lg text-ink">
-                    {editData ? 'Edit Your Response' : 'Tell us if you can make it'}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setEditMode(!editMode);
-                      if (!editMode) {
-                        setEditData(null);
-                        reset();
-                      }
-                    }}
-                    className="flex items-center gap-1.5 font-body text-xs text-blush-deep hover:text-primary transition-colors"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    {editMode ? 'Cancel edit' : 'Edit existing'}
-                  </button>
-                </div>
-              )}
-
-              {/* Edit token lookup */}
-              {editMode && !editData && (
-                <div className="mb-6">
-                  <label className="block font-body text-sm text-ink mb-2">
-                    Enter your response code to edit
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={editTokenInput}
-                      onChange={(e) => setEditTokenInput(e.target.value)}
-                      placeholder="Paste your code here..."
-                      className="flex-1 rounded-lg border border-blush-deep/30 bg-ivory px-4 py-2.5 font-body text-sm text-ink focus:outline-none focus:ring-2 focus:ring-blush-deep/30"
-                    />
-                    <button
-                      onClick={handleEditLookup}
-                      disabled={submitting || !editTokenInput.trim()}
-                      className="px-5 py-2.5 rounded-lg bg-blush-deep text-ivory font-body text-sm disabled:opacity-50 hover:bg-blush-deep/85 transition-colors"
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Find'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Form */}
-              {(!editMode || editData) && (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                  <FormField label="Full Name" icon={<User className="w-4 h-4" />} error={errors.full_name?.message}>
-                    <input
-                      {...register('full_name')}
-                      type="text"
-                      placeholder="Your full name"
-                      className="form-input"
-                    />
-                  </FormField>
-
-                  <div className="grid md:grid-cols-2 gap-5">
-                    <FormField label="Phone Number" icon={<Phone className="w-4 h-4" />} error={errors.phone?.message}>
-                      <input
-                        {...register('phone')}
-                        type="tel"
-                        placeholder="+251 ..."
-                        className="form-input"
-                      />
-                    </FormField>
-
-                    <FormField label="Email (optional)" icon={<Mail className="w-4 h-4" />} error={errors.email?.message}>
-                      <input
-                        {...register('email')}
-                        type="email"
-                        placeholder="your@email.com"
-                        className="form-input"
-                      />
-                    </FormField>
-                  </div>
-
-                  {/* Attending */}
-                  <FormField label="Will you attend?" error={errors.attending?.message}>
-                    <div className="grid grid-cols-2 gap-3">
-                      <AttendingButton
-                        selected={attending === true}
-                        onClick={() => setValue('attending', true, { shouldValidate: true })}
-                        label="Yes, I'll be there"
-                        variant="yes"
-                      />
-                      <AttendingButton
-                        selected={attending === false}
-                        onClick={() => setValue('attending', false, { shouldValidate: true })}
-                        label="Can't make it"
-                        variant="no"
-                      />
-                    </div>
-                  </FormField>
-
-                  {/* Conditional fields for attending guests */}
-                  {attending === true && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-5 overflow-hidden"
-                    >
-                      <FormField
-                        label="Number of accompanying guests"
-                        icon={<Users className="w-4 h-4" />}
-                        error={errors.num_guests?.message}
-                      >
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setValue('num_guests', Math.max(0, (watch('num_guests') || 0) - 1))}
-                            className="w-10 h-10 rounded-full bg-blush-deep/10 text-blush-deep font-serif-display text-xl flex items-center justify-center hover:bg-blush-deep/20 transition-colors"
-                          >
-                            −
-                          </button>
-                          <span className="font-serif-display text-2xl text-ink w-8 text-center">
-                            {watch('num_guests') || 0}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setValue('num_guests', Math.min(10, (watch('num_guests') || 0) + 1))}
-                            className="w-10 h-10 rounded-full bg-blush-deep/10 text-blush-deep font-serif-display text-xl flex items-center justify-center hover:bg-blush-deep/20 transition-colors"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </FormField>
-
-                      {watch('num_guests') && watch('num_guests')! > 0 && (
-                        <FormField label="Names of accompanying guests">
-                          <textarea
-                            {...register('accompanying_names')}
-                            rows={2}
-                            placeholder="List their names here..."
-                            className="form-input resize-none"
-                          />
-                        </FormField>
-                      )}
-
-                      <FormField
-                        label="Dietary requirements (optional)"
-                        icon={<Utensils className="w-4 h-4" />}
-                      >
-                        <input
-                          {...register('dietary_requirements')}
-                          type="text"
-                          placeholder="e.g., vegetarian, gluten-free, allergies..."
-                          className="form-input"
-                        />
-                      </FormField>
-                    </motion.div>
-                  )}
-
-                  <FormField label="Personal message (optional)">
-                    <textarea
-                      {...register('message')}
-                      rows={3}
-                      placeholder="Share your wishes with the couple..."
-                      className="form-input resize-none"
-                    />
-                  </FormField>
-
-                  {error && (
-                    <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-                      <p className="font-body text-sm text-red-600">{error}</p>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-4 rounded-full bg-gradient-to-r from-blush-deep to-blush-deep/85 text-ivory font-body text-sm tracking-[0.2em] uppercase shadow-lg disabled:opacity-60 hover:shadow-xl transition-shadow flex items-center justify-center gap-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Sending...
-                      </>
-                    ) : editMode ? (
-                      'Update Response'
-                    ) : (
-                      'Send RSVP'
-                    )}
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <p className="text-center text-xs leading-relaxed text-ink-light">
+                Your information is used for wedding guest registration
+                and entrance management.
+              </p>
+            </form>
+          </div>
+        )}
       </div>
-
-      <style jsx>{`
-        :global(.form-input) {
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid hsl(var(--blush-deep) / 0.3);
-          background-color: hsl(var(--ivory));
-          padding: 0.625rem 1rem;
-          font-family: var(--font-montserrat), sans-serif;
-          font-size: 0.875rem;
-          color: hsl(var(--ink));
-          transition: box-shadow 0.2s, border-color 0.2s;
-        }
-        :global(.form-input:focus) {
-          outline: none;
-          border-color: hsl(var(--blush-deep) / 0.5);
-          box-shadow: 0 0 0 2px hsl(var(--blush-deep) / 0.2);
-        }
-        :global(.form-input::placeholder) {
-          color: hsl(var(--ink-light) / 0.5);
-        }
-      `}</style>
-    </SectionReveal>
-  );
-}
-
-function FormField({
-  label,
-  icon,
-  error,
-  children,
-}: {
-  label: string;
-  icon?: React.ReactNode;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="flex items-center gap-1.5 font-body text-sm text-ink mb-1.5">
-        {icon && <span className="text-blush-deep">{icon}</span>}
-        {label}
-      </label>
-      {children}
-      {error && <p className="mt-1 font-body text-xs text-red-500">{error}</p>}
-    </div>
-  );
-}
-
-function AttendingButton({
-  selected,
-  onClick,
-  label,
-  variant,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  label: string;
-  variant: 'yes' | 'no';
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`py-3.5 rounded-xl border-2 font-body text-sm transition-all ${
-        selected
-          ? variant === 'yes'
-            ? 'bg-blush-deep text-ivory border-blush-deep shadow-md'
-            : 'bg-ink/80 text-ivory border-ink shadow-md'
-          : 'bg-ivory text-ink border-blush-deep/20 hover:border-blush-deep/40'
-      }`}
-    >
-      {label}
-    </button>
+    </section>
   );
 }

@@ -224,3 +224,102 @@
 html {
   scroll-behavior: smooth;
 }
+
+
+/* Continuous couple watermarks: original transparent cutout, never a separate photo card. */
+.couple-watermarks {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.couple-watermark-colour {
+  position: absolute;
+  left: clamp(-5rem, -2vw, 0rem);
+  bottom: -2vh;
+  height: min(82vh, 58rem);
+  width: auto;
+  max-width: 54vw;
+  object-fit: contain;
+  object-position: bottom left;
+  opacity: 0.14;
+  filter: saturate(0.92);
+}
+
+.couple-watermark-portrait {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: clamp(15rem, 35vw, 34rem);
+  height: clamp(13rem, 34vh, 23rem);
+  overflow: hidden;
+  opacity: 0.11;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+
+.couple-watermark-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 4%;
+  filter: grayscale(1) contrast(0.92);
+  transform: scale(1.08);
+  transform-origin: top center;
+}
+
+@media (max-width: 640px) {
+  .couple-watermark-colour {
+    left: -3.5rem;
+    bottom: -1vh;
+    height: 57vh;
+    max-width: 78vw;
+    opacity: 0.105;
+  }
+
+  .couple-watermark-portrait {
+    top: 0;
+    right: -2rem;
+    width: 58vw;
+    height: 21vh;
+    opacity: 0.085;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .couple-watermarks img {
+    transform: none;
+  }
+}
+
+
+/* Amharic / Ethiopic typography: use a system Ethiopic font where available. */
+html[lang="am"],
+html[lang="am"] body,
+body.language-amharic {
+  font-family: "Noto Sans Ethiopic", "Nyala", "Abyssinica SIL", sans-serif;
+}
+
+html[lang="am"] h1,
+html[lang="am"] h2,
+html[lang="am"] h3,
+html[lang="am"] h4,
+html[lang="am"] h5,
+html[lang="am"] h6,
+html[lang="am"] .font-script,
+html[lang="am"] .font-serif-display,
+html[lang="am"] .font-body {
+  font-family: "Noto Sans Ethiopic", "Nyala", "Abyssinica SIL", sans-serif;
+  letter-spacing: normal;
+  line-height: 1.65;
+}
+
+html[lang="am"] .tracking-\[0\.4em\],
+html[lang="am"] .tracking-\[0\.3em\],
+html[lang="am"] .tracking-\[0\.2em\],
+html[lang="am"] .tracking-\[0\.15em\] {
+  letter-spacing: normal;
+}

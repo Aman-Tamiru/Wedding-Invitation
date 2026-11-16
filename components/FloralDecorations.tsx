@@ -163,11 +163,13 @@ export function FloralBorder({
 
 /* Falling petals animation */
 export function FallingPetals({ count = 15 }: { count?: number }) {
+  // Keep every value deterministic so the server and browser render identical markup.
+  // The varied pattern still feels organic without Math.random() during render.
   const petals = [...Array(count)].map((_, i) => {
-    const left = (i * 100) / count + Math.random() * 10;
-    const duration = 8 + Math.random() * 12;
-    const delay = Math.random() * 10;
-    const size = 8 + Math.random() * 10;
+    const left = ((i * 100) / count + ((i * 37) % 11)) % 100;
+    const duration = 8 + ((i * 7) % 13);
+    const delay = (i * 3.7) % 10;
+    const size = 8 + ((i * 5) % 11);
     return { left, duration, delay, size, id: i };
   });
 
@@ -184,14 +186,12 @@ export function FallingPetals({ count = 15 }: { count?: number }) {
             animationDelay: `${p.delay}s`,
           }}
         >
-          <svg width={p.size} height={p.size} viewBox="0 0 20 20" fill="none">
-            <ellipse
-              cx="10"
-              cy="10"
-              rx="7"
-              ry="4"
-              fill="hsl(340 35% 78% / 0.5)"
-              transform="rotate(45 10 10)"
+          <svg width={p.size} height={p.size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 21s-8.5-5.1-8.5-11.2A4.8 4.8 0 0 1 12 7.1a4.8 4.8 0 0 1 8.5 2.7C20.5 15.9 12 21 12 21Z"
+              fill="hsl(340 35% 78% / 0.42)"
+              stroke="hsl(340 28% 72% / 0.28)"
+              strokeWidth="0.6"
             />
           </svg>
         </div>

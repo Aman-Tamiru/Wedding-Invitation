@@ -16,6 +16,7 @@ import { PersonalMessageSection } from '@/components/sections/PersonalMessageSec
 import { RSVPSection } from '@/components/RSVPSection';
 import { Footer } from '@/components/Footer';
 import { FallingPetals } from '@/components/FloralDecorations';
+import { CoupleWatermarks } from '@/components/CoupleWatermarks';
 
 export default function Home() {
   const [opened, setOpened] = useState(false);
@@ -30,6 +31,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden">
+      <CoupleWatermarks />
       {/* Envelope opening screen */}
       <AnimatePresence>
         {!opened && <Envelope onOpen={() => setOpened(true)} />}
@@ -40,7 +42,7 @@ export default function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: opened ? 1 : 0 }}
         transition={{ duration: 1, delay: 0.3 }}
-        className={opened ? '' : 'pointer-events-none'}
+        className={`relative z-10 ${opened ? '' : 'pointer-events-none'}`}
       >
         {/* Floating petals over content */}
         <FallingPetals count={8} />
