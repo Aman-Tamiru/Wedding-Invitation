@@ -1,90 +1,81 @@
+
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+
 import { Envelope } from '@/components/Envelope';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { HeroSection, CountdownSection } from '@/components/HeroSection';
-import { OurStorySection } from '@/components/sections/OurStorySection';
 import { LocationSection } from '@/components/sections/LocationSection';
-import { ScheduleSection } from '@/components/sections/ScheduleSection';
-import { DressCodeSection } from '@/components/sections/DressCodeSection';
-import { AccommodationSection } from '@/components/sections/AccommodationSection';
-import { GiftSection } from '@/components/sections/GiftSection';
-import { FAQSection } from '@/components/sections/FAQSection';
-import { PersonalMessageSection } from '@/components/sections/PersonalMessageSection';
 import { RSVPSection } from '@/components/RSVPSection';
+import { PersonalMessageSection } from '@/components/sections/PersonalMessageSection';
 import { Footer } from '@/components/Footer';
 import { FallingPetals } from '@/components/FloralDecorations';
 import { CoupleWatermarks } from '@/components/CoupleWatermarks';
 
+const ENVELOPE_KEY = 'wedding-envelope-opened';
+
 export default function Home() {
   const [opened, setOpened] = useState(false);
-  const rsvpRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
 
   const scrollToRSVP = () => {
-    const el = document.getElementById('rsvp');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.getElementById('rsvp')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   };
 
+  useEffect(() => {
+    setOpened(window.sessionStorage.getItem(ENVELOPE_KEY) === 'true');
+    setReady(true);
+  }, []);
+
+  const openInvitation = () => {
+    window.sessionStorage.setItem(ENVELOPE_KEY, 'true');
+    setOpened(true);
+  };
+
+  if (!ready) {
+    return <main className="min-h-screen bg-ivory" />;
+  }
+
   return (
-    <main className="relative min-h-screen overflow-x-hidden">
+    <main className="relative min-h-screen overflow-x-hidden bg-ivory">
       <CoupleWatermarks />
-      {/* Envelope opening screen */}
+
       <AnimatePresence>
-        {!opened && <Envelope onOpen={() => setOpened(true)} />}
+        {!opened && <Envelope onOpen={openInvitation} />}
       </AnimatePresence>
 
-      {/* Main content — revealed after envelope opens */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: opened ? 1 : 0 }}
-        transition={{ duration: 1, delay: 0.3 }}
-        className={`relative z-10 ${opened ? '' : 'pointer-events-none'}`}
-      >
-        {/* Floating petals over content */}
-        <FallingPetals count={8} />
+      {opened && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.9 }}
+          className="relative z-10"
+        >
+          <FallingPetals count={8} />
 
-        {/* Hero with names, date, photo */}
-        <HeroSection onRSVP={scrollToRSVP} />
+          <HeroSection onRSVP={scrollToRSVP} />
 
-        {/* Countdown */}
-        <CountdownSection />
 
-        {/* Our Story */}
-        <OurStorySection />
 
-        {/* Wedding Location */}
-        <LocationSection />
+          <CountdownSection />
 
-        {/* Wedding Schedule */}
-        <ScheduleSection />
+          <LocationSection />
 
-        {/* Dress Code */}
-        <DressCodeSection />
+          <div id="rsvp" className="scroll-mt-8">
+            <RSVPSection />
+          </div>
 
-        {/* Accommodation */}
-        <AccommodationSection />
+          <PersonalMessageSection />
 
-        {/* Gift Information */}
-        <GiftSection />
+          <Footer />
+        </motion.div>
+      )}
 
-        {/* RSVP */}
-        <RSVPSection />
-
-        {/* FAQ */}
-        <FAQSection />
-
-        {/* Personal Message */}
-        <PersonalMessageSection />
-
-        {/* Footer */}
-        <Footer />
-      </motion.div>
-
-      {/* Music player (always visible) */}
       <MusicPlayer />
     </main>
   );

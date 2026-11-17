@@ -1,6 +1,7 @@
 
 import './globals.css';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { PublicNavigation } from '@/components/wedding/PublicNavigation';
 import type { Metadata, Viewport } from 'next';
 import {
   Cormorant_Garamond,
@@ -35,35 +36,35 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
-
   icons: {
     icon: [
       {
-        url: '/icons/wedding-app-icon.png',
-        type: 'image/png',
-        sizes: '1024x1024',
+        url: "/icons/icon-192.png",
+        type: "image/png",
+        sizes: "192x192",
+      },
+      {
+        url: "/icons/icon-512.png",
+        type: "image/png",
+        sizes: "512x512",
       },
     ],
     apple: [
       {
-        url: '/icons/wedding-app-icon.png',
-        type: 'image/png',
-        sizes: '1024x1024',
+        url: "/icons/apple-touch-icon.png",
+        type: "image/png",
+        sizes: "180x180",
       },
     ],
   },
-
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Betslot & Amanuel',
   },
-
   title: "Betslot & Amanuel — We're Getting Married!",
-
   description:
     'Join us in celebrating the wedding of Betslot Andualem Demissie and Amanuel Tamiru Gebre on 19 November 2028 at Friendship Park, Addis Ababa, Ethiopia.',
-
   openGraph: {
     title: "Betslot & Amanuel — We're Getting Married!",
     description:
@@ -77,7 +78,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-
   twitter: {
     card: 'summary_large_image',
     images: ['/icons/wedding-app-icon.png'],
@@ -94,10 +94,14 @@ export default function RootLayout({
       lang="en"
       className={`${cormorant.variable} ${greatVibes.variable} ${montserrat.variable}`}
     >
-      <body className="font-body antialiased">
-        <LanguageSwitcher />
-        {children}
-      </body>
+     <body className="font-body antialiased">
+  <div className="sticky top-0 z-[100] flex w-full items-center border-b border-gold/25 bg-ivory/95 shadow-sm backdrop-blur-md">
+    <PublicNavigation />
+    <LanguageSwitcher />
+  </div>
+
+  {children}
+</body>
     </html>
   );
 }

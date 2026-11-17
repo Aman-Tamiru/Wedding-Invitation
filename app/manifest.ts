@@ -1,4 +1,3 @@
-
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -14,8 +13,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#fbf8f0",
     icons: [
       {
-        src: "/icons/wedding-app-icon.png",
-        sizes: "1024x1024",
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
