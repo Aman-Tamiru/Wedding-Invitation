@@ -68,15 +68,18 @@ export function createAdminClient() {
 export function createLoginClient() {
   const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
   const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+  const apiKey = process.env.APPWRITE_API_KEY;
 
-  if (!endpoint || !projectId) {
+  if (!endpoint || !projectId || !apiKey) {
     throw new Error("Appwrite login configuration is incomplete.");
   }
 
-  // Password authentication uses the user's credentials, never the server API key.
+  // Server-side SSR authentication uses the server API key
+  // to create the user session and obtain its secret.
   const client = new Client()
     .setEndpoint(endpoint)
-    .setProject(projectId);
+    .setProject(projectId)
+    .setKey(apiKey);
 
   return {
     client,
