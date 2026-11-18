@@ -238,7 +238,7 @@ export function LanguageSwitcher() {
           />
 
           <aside
-            className="absolute right-0 top-0 flex h-screen min-h-screen w-[15vw] min-w-[110px] max-w-[280px] flex-col border-l border-gold/20 bg-ivory/10 backdrop-blur-[2px] px-3 py-5 shadow-2xl sm:px-5"
+            className="absolute right-0 top-0 flex h-screen min-h-screen w-[15vw] min-w-[110px] max-w-[280px] flex-col border-l border-gold/20 bg-ivory/10 px-3 py-5 shadow-2xl backdrop-blur-[2px] sm:px-5"
             onClick={(event) => event.stopPropagation()}
           >
             <nav className="flex flex-col gap-2">
@@ -258,6 +258,21 @@ export function LanguageSwitcher() {
               ))}
             </nav>
 
+            {/* Staff link: inside the hamburger menu, below Travel & FAQ */}
+            <Link
+              href="/staff/login"
+              onClick={() => setMenuOpen(false)}
+              aria-current={pathname.startsWith('/staff') ? 'page' : undefined}
+              className={`mt-16 block w-full rounded-lg border border-gold/30 px-3 py-3 text-xs font-medium transition sm:text-sm ${
+                pathname.startsWith('/staff')
+                  ? 'bg-blush-deep text-white'
+                  : 'text-ink hover:border-gold hover:bg-blush-light'
+              }`}
+            >
+              {language === 'am' ? 'ሰራተኞች' : 'Staff'}
+            </Link>
+
+            {/* Existing admin lock icon remains at the bottom */}
             <div className="mt-auto flex justify-end border-t border-gold/20 pt-4">
               <Link
                 href="/admin"

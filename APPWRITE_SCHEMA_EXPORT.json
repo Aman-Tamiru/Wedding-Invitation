@@ -1,0 +1,11 @@
+﻿{
+    "export_time":  "2026-11-18T17:00:56.6167493+03:00",
+    "success":  false,
+    "method":  "Appwrite REST API",
+    "tables":  [
+
+               ],
+    "errors":  [
+                   "Appwrite schema API: The remote server returned an error: (404) Not Found."
+               ]
+}

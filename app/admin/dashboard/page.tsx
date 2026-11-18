@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -100,18 +101,44 @@ export default function AdminDashboardPage() {
   const { language } = useAdminLanguage();
   const am = language === "am";
 
+  const quickLinks = [
+    {
+      label: am ? "የእንግዶች አስተዳደር" : "Guest Management",
+      detail: am ? "ዝርዝር እና RSVP" : "Invitations & RSVPs",
+      href: "/admin/dashboard/guests",
+    },
+    {
+      label: am ? "የመቀመጫ እቅድ" : "Seating Plan",
+      detail: am ? "የአዳራሽ አቀማመጥ" : "Reception layout",
+      href: "/admin/dashboard/seating",
+    },
+    {
+      label: am ? "የድረ-ገጽ አርትዖት" : "Website Content",
+      detail: am ? "የሁለት ቋንቋ ይዘት" : "English & Amharic",
+      href: "/admin/dashboard/website-editor",
+    },
+    {
+      label: am ? "የቡድን አስተዳደር" : "Team Access",
+      detail: am ? "ሰራተኞች እና ሚናዎች" : "Staff & permissions",
+      href: "/admin/dashboard/staff",
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-[1450px] space-y-8">
       <section className="relative overflow-hidden rounded-[30px] border border-[#e9d8ce] bg-gradient-to-br from-[#fffaf6] via-[#f8e9e9] to-[#f2e8dc] px-6 py-9 shadow-[0_18px_60px_rgba(100,65,70,0.07)] sm:px-10 sm:py-12">
         <div className="pointer-events-none absolute -right-10 -top-20 h-72 w-72 rounded-full border border-[#cba9a2]/30" />
         <div className="pointer-events-none absolute -right-2 -top-12 h-56 w-56 rounded-full border border-[#cba9a2]/25" />
+
         <div className="relative max-w-3xl">
           <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-[#a17b62]">
             {am ? "የግል የሰርግ አስተዳደር" : "PRIVATE WEDDING ADMINISTRATION"}
           </p>
+
           <h1 className="mt-4 font-serif text-4xl leading-tight text-[#754e5c] sm:text-5xl lg:text-6xl">
             {am ? "እንኳን ወደ የሰርግ ማዕከላችሁ በደህና መጡ" : "Your Wedding, Beautifully Organized."}
           </h1>
+
           <p className="mt-4 max-w-2xl text-sm leading-7 text-[#806e68] sm:text-base">
             {am
               ? "የሰርጋችሁን እያንዳንዱን ዝርዝር ከአንድ ቦታ ያስተዳድሩ።"
@@ -136,32 +163,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: am ? "የእንግዶች አስተዳደር" : "Guest Management",
-            value: "→",
-            detail: am ? "ዝርዝር እና RSVP" : "Invitations & RSVPs",
-            href: "/admin/dashboard/guests",
-          },
-          {
-            label: am ? "የመቀመጫ እቅድ" : "Seating Plan",
-            value: "→",
-            detail: am ? "የአዳራሽ አቀማመጥ" : "Reception layout",
-            href: "/admin/dashboard/seating",
-          },
-          {
-            label: am ? "የድረ-ገጽ አርትዖት" : "Website Content",
-            value: "→",
-            detail: am ? "የሁለት ቋንቋ ይዘት" : "English & Amharic",
-            href: "/admin/dashboard/website-editor",
-          },
-          {
-            label: am ? "የቡድን አስተዳደር" : "Team Access",
-            value: "→",
-            detail: am ? "ሰራተኞች እና ሚናዎች" : "Staff & permissions",
-            href: "/admin/dashboard/staff",
-          },
-        ].map((item) => (
+        {quickLinks.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -169,9 +171,7 @@ export default function AdminDashboardPage() {
           >
             <p className="text-xs text-[#947e74]">{item.label}</p>
             <div className="mt-3 flex items-end justify-between">
-              <span className="font-serif text-3xl text-[#805767]">
-                {item.value}
-              </span>
+              <span className="font-serif text-3xl text-[#805767]">→</span>
               <span className="text-xs text-[#a38d80] group-hover:text-[#805767]">
                 {item.detail}
               </span>
@@ -208,10 +208,9 @@ export default function AdminDashboardPage() {
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 font-serif text-2xl text-[#956a76] shadow-sm">
                     {section.icon}
                   </span>
-                  <span className="text-lg text-[#b18c81] transition group-hover:translate-x-1">
-                    →
-                  </span>
+                  <span className="text-lg text-[#b18c81] transition group-hover:translate-x-1">→</span>
                 </div>
+
                 <h3 className="mt-5 font-serif text-xl text-[#754e5c]">
                   {am ? section.am : section.title}
                 </h3>

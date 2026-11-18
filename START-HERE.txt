@@ -1,0 +1,8 @@
+START HERE
+==========
+This is the fresh full-source workspace, not the earlier partial-fixes ZIP.
+Open this folder in Cursor (the folder containing package.json).
+Read README-FULL-SOURCE.md, IMPLEMENTATION-STATUS.md and docs/completion/.
+The remaining implementation is intentionally not misrepresented as finished.
+Use .env.example only as a variable-name template; supply real credentials locally.
+Do not commit .env.local or share Appwrite API keys.

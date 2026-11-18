@@ -1,0 +1,104 @@
+﻿WEDDING INVITATION PROJECT AUDIT
+Generated: 2026-11-18 17:00:34
+Project: C:\Users\amant\Desktop\My Projects\Wedding-Invitation
+
+========== SYSTEM ==========
+PowerShell: 5.1.26100.9818
+Node:
+v24.21.0
+NPM:
+11.19.0
+
+========== GIT ==========
+Branch:
+main
+
+Latest commits:
+a695999 Fix production admin session creation
+894b26f Complete wedding website updates and seating refinements
+a60f980 Complete wedding website and seating management
+7d9ff1f Complete Appwrite admin dashboard migration
+b07bb08 Prepare wedding website preview deployment
+
+Working tree:
+M app/admin/dashboard/page.tsx
+?? app/admin/dashboard/guests/
+?? app/admin/guests/route.ts
+?? app/api/admin/guests/
+
+========== ENVIRONMENT VARIABLE NAMES ==========
+NEXT_PUBLIC_APPWRITE_ENDPOINT = [VALUE REDACTED]
+NEXT_PUBLIC_APPWRITE_PROJECT_ID = [VALUE REDACTED]
+APPWRITE_API_KEY = [VALUE REDACTED]
+APPWRITE_DATABASE_ID = [VALUE REDACTED]
+APPWRITE_RSVP_TABLE_ID = [VALUE REDACTED]
+APPWRITE_ADMIN_TABLE_ID = [VALUE REDACTED]
+APPWRITE_INVITATIONS_TABLE_ID = [VALUE REDACTED]
+APPWRITE_GIFTS_TABLE_ID = [VALUE REDACTED]
+APPWRITE_CHECKINS_TABLE_ID = [VALUE REDACTED]
+APPWRITE_GIFT_STORAGE_BUCKET_ID = [VALUE REDACTED]
+
+========== IMPORTANT PROJECT FILES ==========
+[FOUND] package.json
+[FOUND] package-lock.json
+[NOT FOUND] pnpm-lock.yaml
+[NOT FOUND] yarn.lock
+[FOUND] tsconfig.json
+[FOUND] next.config.js
+[NOT FOUND] next.config.ts
+[NOT FOUND] next.config.mjs
+[NOT FOUND] middleware.ts
+[NOT FOUND] proxy.ts
+[FOUND] lib/appwrite-server.ts
+[FOUND] .gitignore
+[FOUND] app
+
+========== ADMIN AND API ROUTES ==========
+app\admin\page.tsx
+app\admin\dashboard\layout.tsx
+app\admin\dashboard\page.tsx
+app\admin\dashboard\guests\page.tsx
+app\admin\dashboard\seating\page.tsx
+app\admin\guests\route.ts
+app\api\admin\dashboard\route.ts
+app\api\admin\guests\route.ts
+app\api\admin\login\route.ts
+app\api\admin\logout\route.ts
+app\api\admin\me\route.ts
+app\api\guests\register\route.ts
+app\api\guests\[id]\route.ts
+app\api\rsvp\route.ts
+app\api\seating\route.ts
+app\invitation\[token]\page.tsx
+
+========== PACKAGE SCRIPTS ==========
+{
+    "dev":  "next dev",
+    "build":  "next build",
+    "start":  "next start",
+    "lint":  "next lint",
+    "typecheck":  "tsc --noEmit"
+}
+
+========== APPWRITE CONFIGURATION ==========
+Endpoint: https://fra.cloud.appwrite.io/v1
+Project ID: 6af88048002293d63dbc
+Database ID: 6af887c30008dfddea21
+API key: [NEVER INCLUDED]
+
+Schema export successful: False
+Tables exported: 0
+Schema note: Appwrite schema API: The remote server returned an error: (404) Not Found.
+
+========== PACKAGE SUMMARY ==========
+Files copied: 241
+Files excluded: 36278
+Appwrite tables exported: 0
+No .env.local or API key was included.
+
+========== IMPORTANT ==========
+This package contains source code and database schemas only.
+It does not contain guest database records.
+It does not contain API keys or passwords.
+Appwrite schema export may require additional permissions.
+

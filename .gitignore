@@ -34,3 +34,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local environment backups and secrets
+.env*
+!.env.example
+*.backup*
+*.bak
+*.pem
+*.key
+*.p12
+*.pfx
+
+.env.local.backup*
+.env.*.backup*
