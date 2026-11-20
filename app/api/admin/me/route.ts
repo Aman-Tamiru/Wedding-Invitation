@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const currentAdmin = await getCurrentAdmin();
 
-  if (!currentAdmin) {
+  if (!currentAdmin || !currentAdmin.isOwner) {
     return NextResponse.json(
       { authenticated: false },
       { status: 401 }
@@ -19,8 +19,7 @@ export async function GET() {
     admin: {
       full_name: currentAdmin.staff.full_name,
       role: currentAdmin.staff.role,
-      isOwner: currentAdmin.isOwner,
+      isOwner: true,
     },
   });
 }
-

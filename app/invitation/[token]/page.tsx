@@ -2,7 +2,9 @@
 import { notFound } from "next/navigation";
 import { Query } from "node-appwrite";
 import { createAdminClient } from "@/lib/appwrite-server";
-import InvitationQRCode from "@/components/InvitationQRCode";
+import { CoupleWatermarks } from "@/components/CoupleWatermarks";
+import GuestInvitationExperience from "@/components/guest/GuestInvitationExperience";
+
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +18,13 @@ type InvitationRecord = {
   status: string;
   attending: boolean;
   checked_in: boolean;
+  accompanying_names?: string;
 };
 
 export default async function InvitationPage({ params }: Props) {
   const { token } = await params;
 
-  if (!/^[a-f0-9]{64}$/i.test(token)) {
-    notFound();
-  }
+  if (!/^[a-f0-9]{64}$/i.test(token)) notFound();
 
   const databaseId = process.env.APPWRITE_DATABASE_ID;
   const tableId = process.env.APPWRITE_INVITATIONS_TABLE_ID;
@@ -37,70 +38,44 @@ export default async function InvitationPage({ params }: Props) {
   const result = await tables.listRows({
     databaseId,
     tableId,
-    queries: [
-      Query.equal("qr_token", token),
-      Query.limit(1),
-    ],
+    queries: [Query.equal("qr_token", token), Query.limit(1)],
   });
 
-  const invitation = result.rows[0] as unknown as
-    | InvitationRecord
-    | undefined;
+  const invitation = result.rows[0] as unknown as InvitationRecord | undefined;
 
-  if (!invitation) {
-    notFound();
-  }
+  if (!invitation) notFound();
 
   if (invitation.status === "revoked") {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-[#f8f4ec] p-6">
-        <section className="max-w-md w-full text-center bg-white p-10 rounded-2xl shadow-xl">
-          <h1 className="font-serif text-3xl text-[#8d3030]">
-            Invitation Deactivated
-          </h1>
-          <p className="mt-4 text-gray-600">
-            This invitation is no longer active. Please contact the couple.
-          </p>
-        </section>
+      <main className="flex min-h-screen items-center justify-center p-8">
+        <div className="guest-glass-panel max-w-lg p-10 text-center">
+          <h1 className="font-serif text-3xl text-[#805767]">Invitation Deactivated · ግብዣው ተሰርዟል</h1>
+          <p className="mt-4">Please contact the couple · እባክዎ ከጥንዶቹ ጋር ይገናኙ።</p>
+        </div>
       </main>
     );
   }
 
-  if (invitation.status !== "responded" || !invitation.attending) {
-    notFound();
-  }
+  if (invitation.status !== "responded" || !invitation.attending) notFound();
+
+  const partnerName = invitation.accompanying_names
+    ?.split(/\r?\n|,/)
+    .map((name) => name.trim())
+    .filter(Boolean)[0];
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#f8f4ec] p-6">
-      <section className="w-full max-w-lg rounded-2xl bg-white p-8 text-center shadow-xl">
-        <p className="uppercase tracking-[0.3em] text-xs text-[#aa8954]">
-          Wedding Invitation
-        </p>
-
-        <h1 className="mt-5 font-serif text-4xl text-[#44372c]">
-          Betslot & Amanuel
-        </h1>
-
-        <p className="mt-5 text-lg text-gray-700">
-          You are warmly invited, {invitation.full_name}.
-        </p>
-
-        <p className="mt-3 text-gray-600">
-          19 November 2028 · 8:00 PM
-        </p>
-
-        <p className="mt-1 text-gray-600">
-          Friendship Park · Addis Ababa, Ethiopia
-        </p>
-
-        <div className="mt-8 flex justify-center">
-          <InvitationQRCode token={token} />
-        </div>
-
-        <p className="mt-5 text-sm text-gray-500">
-          Please present this QR code at the entrance.
-        </p>
-      </section>
+    <main className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <CoupleWatermarks />
+      </div>
+      <div className="relative z-10">
+        <GuestInvitationExperience
+          token={token}
+          guestName={invitation.full_name}
+          checkedIn={Boolean(invitation.checked_in)}
+          partnerName={partnerName}
+        />
+      </div>
     </main>
   );
 }

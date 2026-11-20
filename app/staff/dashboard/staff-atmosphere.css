@@ -1,0 +1,129 @@
+
+.staff-dashboard-layout {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
+    background: #f8f3ed;
+    color: #4f3c40;
+  }
+  
+  .staff-dashboard-base {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 12% 20%, rgba(211, 174, 159, 0.23), transparent 42%),
+      radial-gradient(ellipse at 88% 75%, rgba(174, 139, 147, 0.18), transparent 43%),
+      linear-gradient(135deg, #fbf7f2, #f4eae5 55%, #faf5ef);
+  }
+  
+  .staff-atmosphere {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  
+  .staff-atmosphere-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+  }
+  
+  .staff-atmosphere-lines path,
+  .staff-atmosphere-lines circle {
+    fill: none;
+    stroke: #b99583;
+    stroke-width: 1.1;
+    opacity: 0.35;
+  }
+  
+  .staff-atmosphere-lines path:nth-child(even) {
+    stroke: #a77d86;
+    opacity: 0.24;
+  }
+  
+  .staff-floating-hearts span {
+    position: absolute;
+    bottom: -50px;
+    color: #b7838d;
+    opacity: 0;
+    font-size: 15px;
+    animation: staff-heart-fall 15s linear infinite;
+  }
+  
+  .staff-floating-hearts span:nth-child(1) {
+    left: 12%;
+    animation-delay: 0s;
+  }
+  
+  .staff-floating-hearts span:nth-child(2) {
+    left: 27%;
+    animation-delay: 3s;
+    font-size: 11px;
+  }
+  
+  .staff-floating-hearts span:nth-child(3) {
+    left: 44%;
+    animation-delay: 6s;
+  }
+  
+  .staff-floating-hearts span:nth-child(4) {
+    left: 63%;
+    animation-delay: 2s;
+    font-size: 12px;
+  }
+  
+  .staff-floating-hearts span:nth-child(5) {
+    left: 76%;
+    animation-delay: 8s;
+  }
+  
+  .staff-floating-hearts span:nth-child(6) {
+    left: 88%;
+    animation-delay: 5s;
+    font-size: 12px;
+  }
+  
+  .staff-floating-hearts span:nth-child(7) {
+    left: 96%;
+    animation-delay: 10s;
+  }
+  
+  @keyframes staff-heart-fall {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 0;
+    }
+  
+    12% {
+      opacity: 0.45;
+    }
+  
+    85% {
+      opacity: 0.3;
+    }
+  
+    100% {
+      transform: translateY(-115vh) rotate(35deg);
+      opacity: 0;
+    }
+  }
+  
+  .staff-dashboard-content {
+    position: relative;
+    z-index: 30;
+    min-height: 100vh;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .staff-floating-hearts span {
+      animation: none;
+      display: none;
+    }
+  }
+  

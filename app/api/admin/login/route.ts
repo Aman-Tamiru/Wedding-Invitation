@@ -11,10 +11,16 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let sessionSecret = "";
+
   try {
     const body = await request.json();
+
     const email =
-      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      typeof body.email === "string"
+        ? body.email.trim().toLowerCase()
+        : "";
+
     const password =
       typeof body.password === "string" ? body.password : "";
 
@@ -32,12 +38,12 @@ export async function POST(request: NextRequest) {
       password,
     });
 
-    const sessionSecret = (
+    sessionSecret = (
       session as typeof session & { secret?: string }
-    ).secret;
+    ).secret || "";
 
     if (!sessionSecret) {
-      throw new Error("Appwrite did not return a session secret.");
+      throw new Error("Appwrite session secret is missing.");
     }
 
     const { tables } = createAdminClient();
@@ -60,19 +66,20 @@ export async function POST(request: NextRequest) {
 
     const admin = result.rows[0];
 
-    if (!admin) {
-      // Do not leave a valid Appwrite session behind for a non-admin account.
+    if (!admin || admin.role !== "owner") {
       try {
-        const { account: sessionAccount } = createSessionClient(sessionSecret);
-        await sessionAccount.deleteSession({ sessionId: "current" });
+        const { account: sessionAccount } =
+          createSessionClient(sessionSecret);
+
+        await sessionAccount.deleteSession({
+          sessionId: "current",
+        });
       } catch (cleanupError) {
-        console.error("Could not revoke non-admin login session:", cleanupError);
+        console.error("Unauthorized session cleanup failed:", cleanupError);
       }
 
       return NextResponse.json(
-        {
-          error: "You do not have admin access. Please contact the owner.",
-        },
+        { error: "Owner access required. Please use the Staff Login page." },
         { status: 403 }
       );
     }

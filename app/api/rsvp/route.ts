@@ -1,25 +1,23 @@
 
-import { randomBytes } from 'crypto';
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { createAdminClient, ID, Query } from '@/lib/appwrite-server';
+import { randomBytes } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { createAdminClient, ID, Query } from "@/lib/appwrite-server";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 const rsvpSchema = z.object({
-  invitation_code: z.string().trim().max(16).optional(),
   full_name: z.string().trim().min(2).max(200),
-  phone: z.string().trim().min(7).max(40),
-  email: z.string().trim().email().or(z.literal('')).optional(),
+  phone: z.string().trim().max(40).optional().default(""),
+  email: z.string().trim().email().or(z.literal("")).optional().default(""),
   attending: z.boolean(),
   num_guests: z.number().int().min(0).max(10),
-  accompanying_names: z.string().max(2000).optional(),
-  dietary_requirements: z.string().max(2000).optional(),
-  message: z.string().max(5000).optional(),
+  accompanying_names: z.string().max(2000).optional().default(""),
+  dietary_requirements: z.string().max(2000).optional().default(""),
+  message: z.string().max(5000).optional().default(""),
 });
 
-const updateSchema = rsvpSchema.omit({ invitation_code: true });
-
+const updateSchema = rsvpSchema;
 type RSVPInput = z.infer<typeof updateSchema>;
 
 function getDatabaseConfig() {
@@ -28,34 +26,45 @@ function getDatabaseConfig() {
   const invitationsTableId = process.env.APPWRITE_INVITATIONS_TABLE_ID;
 
   if (!databaseId || !rsvpTableId || !invitationsTableId) {
-    throw new Error('RSVP database configuration is incomplete.');
+    throw new Error("RSVP database configuration is incomplete.");
   }
 
   return { databaseId, rsvpTableId, invitationsTableId };
 }
 
 function normalizeName(value: string) {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase();
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function normalizePhone(value: string) {
-  return value.replace(/\D/g, '');
+  return value.replace(/\D/g, "");
 }
 
 function validToken(token: unknown): token is string {
-  return typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
+  return typeof token === "string" && /^[a-f0-9]{64}$/i.test(token);
+}
+
+function makeInternalInvitationCode() {
+  return randomBytes(8).toString("hex").toUpperCase();
+}
+
+function getCompanionNames(value: string) {
+  return value
+    .split(/[\r\n;]+/)
+    .map((name) => name.trim())
+    .filter(Boolean);
 }
 
 function publicRsvp(row: Record<string, any>) {
   return {
     full_name: row.full_name,
-    phone: row.phone,
-    email: row.email || '',
+    phone: row.phone || "",
+    email: row.email || "",
     attending: row.attending,
     num_guests: row.num_guests || 0,
-    accompanying_names: row.accompanying_names || '',
-    dietary_requirements: row.dietary_requirements || '',
-    message: row.message || '',
+    accompanying_names: row.accompanying_names || "",
+    dietary_requirements: row.dietary_requirements || "",
+    message: row.message || "",
   };
 }
 
@@ -68,10 +77,56 @@ async function findRsvpByToken(
   const result = await tables.listRows({
     databaseId,
     tableId: rsvpTableId,
-    queries: [Query.equal('edit_token', token), Query.limit(1)],
+    queries: [Query.equal("edit_token", token), Query.limit(1)],
   });
 
   return result.rows?.[0] || null;
+}
+
+async function findExistingInvitation(
+  tables: any,
+  databaseId: string,
+  invitationsTableId: string,
+  fullName: string,
+  phone: string
+) {
+  const result = await tables.listRows({
+    databaseId,
+    tableId: invitationsTableId,
+    queries: [Query.equal("full_name", fullName), Query.limit(20)],
+  });
+
+  const matching = (result.rows || []).filter((row: any) => {
+    if (normalizeName(row.full_name || "") !== normalizeName(fullName)) {
+      return false;
+    }
+
+    if (phone && normalizePhone(row.phone || "") !== normalizePhone(phone)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const pending = matching.filter(
+    (row: any) => row.status === "invited" && !row.rsvp_id
+  );
+
+  // Reuse an existing admin-created invitation only when the match is clear.
+  if (pending.length === 1) return pending[0];
+
+  // Do not accidentally claim one of several same-name invitations.
+  if (!phone && pending.length > 1) return null;
+
+  const alreadyResponded = matching.some(
+    (row: any) => row.status === "responded" && row.rsvp_id
+  );
+
+  if (alreadyResponded) {
+    throw new Error("RSVP_ALREADY_SUBMITTED");
+  }
+
+  return null;
 }
 
 async function rollbackTransaction(tables: any, transactionId: string) {
@@ -81,30 +136,40 @@ async function rollbackTransaction(tables: any, transactionId: string) {
       rollback: true,
     });
   } catch {
-    // A transaction that has already failed or expired may not need rollback.
+    // The transaction may already have expired or rolled back.
   }
 }
 
 function errorResponse(error: unknown) {
+  if (error instanceof Error && error.message === "RSVP_ALREADY_SUBMITTED") {
+    return NextResponse.json(
+      {
+        error:
+          "An RSVP already exists for these guest details. Please contact the couple if you need help.",
+      },
+      { status: 409 }
+    );
+  }
+
   const code =
-    typeof error === 'object' && error !== null && 'code' in error
+    typeof error === "object" && error !== null && "code" in error
       ? Number((error as { code: unknown }).code)
       : 0;
 
-  console.error('RSVP API error:', error);
+  console.error("RSVP API error:", error);
 
   if (code === 409) {
     return NextResponse.json(
       {
         error:
-          'This invitation has just been used or updated. Please refresh and try again.',
+          "This RSVP was just updated. Please refresh and try again.",
       },
       { status: 409 }
     );
   }
 
   return NextResponse.json(
-    { error: 'Something went wrong. Please try again later.' },
+    { error: "Something went wrong. Please try again later." },
     { status: 500 }
   );
 }
@@ -114,11 +179,11 @@ function errorResponse(error: unknown) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.nextUrl.searchParams.get('token');
+    const token = request.nextUrl.searchParams.get("token");
 
     if (!validToken(token)) {
       return NextResponse.json(
-        { error: 'A valid response code is required.' },
+        { error: "A valid response code is required." },
         { status: 400 }
       );
     }
@@ -135,7 +200,7 @@ export async function GET(request: NextRequest) {
 
     if (!row) {
       return NextResponse.json(
-        { error: 'No response was found with that code.' },
+        { error: "No response was found with that code." },
         { status: 404 }
       );
     }
@@ -147,7 +212,8 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST: Create an RSVP only for an existing, preapproved invitation.
+ * POST: Open registration through the public wedding website.
+ * Guests do not need an invitation code or an existing invitation.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -157,7 +223,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: 'Please check your RSVP details and try again.',
+          error: "Please check your RSVP details and try again.",
           details: parsed.error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -165,13 +231,23 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const invitationCode = input.invitation_code
-      ?.trim()
-      .toUpperCase();
+    const companionNames = input.attending
+      ? getCompanionNames(input.accompanying_names)
+      : [];
 
-    if (!invitationCode) {
+    if (companionNames.length > 10) {
       return NextResponse.json(
-        { error: 'Your invitation code is required.' },
+        { error: "You can register up to 10 accompanying guests." },
+        { status: 400 }
+      );
+    }
+
+    if (input.attending && input.num_guests !== companionNames.length) {
+      return NextResponse.json(
+        {
+          error:
+            "Please enter the full name of every accompanying guest. Use one name per line.",
+        },
         { status: 400 }
       );
     }
@@ -181,87 +257,89 @@ export async function POST(request: NextRequest) {
 
     const { tables } = createAdminClient();
 
-    const invitationResult = await tables.listRows({
+    const existingInvitation = await findExistingInvitation(
+      tables,
       databaseId,
-      tableId: invitationsTableId,
-      queries: [
-        Query.equal('invitation_code', invitationCode),
-        Query.limit(1),
-      ],
-    });
+      invitationsTableId,
+      input.full_name,
+      input.phone
+    );
 
-    const invitation = invitationResult.rows?.[0];
-
-    if (!invitation) {
-      return NextResponse.json(
-        {
-          error:
-            'We could not find that invitation code. Please check your invitation.',
-        },
-        { status: 404 }
-      );
-    }
-
-    if (
-      normalizeName(input.full_name) !==
-        normalizeName(invitation.full_name || '') ||
-      normalizePhone(input.phone) !==
-        normalizePhone(invitation.phone || '')
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'Your name or phone number does not match the invitation. Please enter the details provided by the couple.',
-        },
-        { status: 403 }
-      );
-    }
-
-    if (invitation.status !== 'invited') {
-      return NextResponse.json(
-        {
-          error:
-            invitation.status === 'responded'
-              ? 'An RSVP has already been submitted for this invitation.'
-              : 'This invitation is not currently available for RSVP.',
-        },
-        { status: 409 }
-      );
-    }
-
-    if (invitation.rsvp_id) {
-      return NextResponse.json(
-        {
-          error:
-            'An RSVP is already associated with this invitation. Please use your response code to edit it.',
-        },
-        { status: 409 }
-      );
-    }
-
-    const editToken = randomBytes(32).toString('hex');
-    const qrToken = randomBytes(32).toString('hex');
+    const editToken = randomBytes(32).toString("hex");
+    const primaryQrToken = input.attending
+      ? randomBytes(32).toString("hex")
+      : "";
     const rsvpId = ID.unique();
 
-    const {
-      invitation_code: _invitationCode,
-      ...submittedFields
-    } = input;
+    const primaryInvitationId = existingInvitation?.$id || ID.unique();
+    const primaryInvitationCode =
+      existingInvitation?.invitation_code || makeInternalInvitationCode();
 
     const rsvpData = {
-      ...submittedFields,
-      email: input.email || '',
-      num_guests: input.attending ? input.num_guests : 0,
-      accompanying_names: input.accompanying_names || '',
-      dietary_requirements: input.dietary_requirements || '',
-      message: input.message || '',
+      full_name: input.full_name,
+      phone: input.phone || "",
+      email: input.email || "",
+      attending: input.attending,
+      num_guests: input.attending ? companionNames.length : 0,
+      accompanying_names: input.attending
+        ? companionNames.join("\n")
+        : "",
+      dietary_requirements: input.dietary_requirements || "",
+      message: input.message || "",
       edit_token: editToken,
     };
+
+    const primaryInvitationData = {
+      full_name: input.full_name,
+      phone: input.phone || "",
+      email: input.email || "",
+      invitation_code: primaryInvitationCode,
+      qr_token: primaryQrToken || null,
+      status: "responded",
+      attending: input.attending,
+      num_guests: input.attending ? companionNames.length : 0,
+      accompanying_names: input.attending
+        ? companionNames.join("\n")
+        : "",
+      dietary_requirements: input.dietary_requirements || "",
+      message: input.message || "",
+      checked_in: false,
+      checked_in_at: null,
+      checked_in_by: null,
+      created_by: existingInvitation?.created_by || "public-rsvp",
+      rsvp_id: rsvpId,
+    };
+
+    const guestPasses: {
+      full_name: string;
+      guest_type: string;
+      qr_token: string;
+      invitation_url: string;
+    }[] = [];
+
+    if (input.attending) {
+      guestPasses.push({
+        full_name: input.full_name,
+        guest_type: "primary",
+        qr_token: primaryQrToken,
+        invitation_url: `/invitation/${primaryQrToken}`,
+      });
+
+      for (const companionName of companionNames) {
+        const companionToken = randomBytes(32).toString("hex");
+
+        guestPasses.push({
+          full_name: companionName,
+          guest_type: "companion",
+          qr_token: companionToken,
+          invitation_url: `/invitation/${companionToken}`,
+        });
+      }
+    }
 
     const transaction = await tables.createTransaction();
 
     try {
-      // Stage creation of the RSVP.
       await tables.createRow({
         databaseId,
         tableId: rsvpTableId,
@@ -270,25 +348,52 @@ export async function POST(request: NextRequest) {
         transactionId: transaction.$id,
       });
 
-      // Stage the invitation claim in the same transaction.
-      await tables.updateRow({
-        databaseId,
-        tableId: invitationsTableId,
-        rowId: invitation.$id,
-        data: {
-          status: 'responded',
-          qr_token: qrToken,
-          attending: input.attending,
-          num_guests: input.attending ? input.num_guests : 0,
-          accompanying_names: input.accompanying_names || '',
-          dietary_requirements: input.dietary_requirements || '',
-          message: input.message || '',
-          rsvp_id: rsvpId,
-        },
-        transactionId: transaction.$id,
-      });
+      if (existingInvitation) {
+        await tables.updateRow({
+          databaseId,
+          tableId: invitationsTableId,
+          rowId: primaryInvitationId,
+          data: primaryInvitationData,
+          transactionId: transaction.$id,
+        });
+      } else {
+        await tables.createRow({
+          databaseId,
+          tableId: invitationsTableId,
+          rowId: primaryInvitationId,
+          data: primaryInvitationData,
+          transactionId: transaction.$id,
+        });
+      }
 
-      // Both operations become permanent together.
+      // Every accompanying guest gets a separate invitation row and QR token.
+      for (const pass of guestPasses.slice(1)) {
+        await tables.createRow({
+          databaseId,
+          tableId: invitationsTableId,
+          rowId: ID.unique(),
+          data: {
+            full_name: pass.full_name,
+            phone: "",
+            email: "",
+            invitation_code: makeInternalInvitationCode(),
+            qr_token: pass.qr_token,
+            status: "responded",
+            attending: true,
+            num_guests: 0,
+            accompanying_names: "",
+            dietary_requirements: "",
+            message: "",
+            checked_in: false,
+            checked_in_at: null,
+            checked_in_by: null,
+            created_by: "public-rsvp",
+            rsvp_id: rsvpId,
+          },
+          transactionId: transaction.$id,
+        });
+      }
+
       await tables.updateTransaction({
         transactionId: transaction.$id,
         commit: true,
@@ -302,7 +407,8 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         edit_token: editToken,
-        qr_token: qrToken,
+        qr_token: primaryQrToken || null,
+        guest_passes: guestPasses,
         rsvp: publicRsvp(rsvpData),
       },
       { status: 201 }
@@ -319,9 +425,9 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
 
-    if (!body || typeof body !== 'object') {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { error: 'Invalid request.' },
+        { error: "Invalid request." },
         { status: 400 }
       );
     }
@@ -330,7 +436,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!validToken(token)) {
       return NextResponse.json(
-        { error: 'A valid response code is required.' },
+        { error: "A valid response code is required." },
         { status: 400 }
       );
     }
@@ -340,8 +446,26 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: 'Please check your RSVP details and try again.',
+          error: "Please check your RSVP details and try again.",
           details: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const input: RSVPInput = parsed.data;
+    const companionNames = input.attending
+      ? getCompanionNames(input.accompanying_names)
+      : [];
+
+    if (
+      companionNames.length > 10 ||
+      (input.attending && input.num_guests !== companionNames.length)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Please enter the full name of every accompanying guest, one name per line.",
         },
         { status: 400 }
       );
@@ -361,32 +485,36 @@ export async function PATCH(request: NextRequest) {
 
     if (!existing) {
       return NextResponse.json(
-        { error: 'No response was found with that code.' },
+        { error: "No response was found with that code." },
         { status: 404 }
       );
     }
 
-    const input: RSVPInput = parsed.data;
-
     const updateData = {
-      ...input,
-      email: input.email || '',
-      num_guests: input.attending ? input.num_guests : 0,
-      accompanying_names: input.accompanying_names || '',
-      dietary_requirements: input.dietary_requirements || '',
-      message: input.message || '',
+      full_name: input.full_name,
+      phone: input.phone || "",
+      email: input.email || "",
+      attending: input.attending,
+      num_guests: input.attending ? companionNames.length : 0,
+      accompanying_names: input.attending
+        ? companionNames.join("\n")
+        : "",
+      dietary_requirements: input.dietary_requirements || "",
+      message: input.message || "",
     };
 
     const invitationResult = await tables.listRows({
       databaseId,
       tableId: invitationsTableId,
       queries: [
-        Query.equal('rsvp_id', existing.$id),
-        Query.limit(1),
+        Query.equal("rsvp_id", existing.$id),
+        Query.limit(20),
       ],
     });
 
-    const invitation = invitationResult.rows?.[0] || null;
+    const invitation = (invitationResult.rows || []).find(
+      (row: any) => row.full_name === existing.full_name
+    );
 
     const transaction = await tables.createTransaction();
 
@@ -399,17 +527,15 @@ export async function PATCH(request: NextRequest) {
         transactionId: transaction.$id,
       });
 
-      if (invitation && invitation.status === 'responded') {
+      if (invitation) {
         await tables.updateRow({
           databaseId,
           tableId: invitationsTableId,
           rowId: invitation.$id,
           data: {
-            attending: input.attending,
-            num_guests: input.attending ? input.num_guests : 0,
-            accompanying_names: input.accompanying_names || '',
-            dietary_requirements: input.dietary_requirements || '',
-            message: input.message || '',
+            ...updateData,
+            qr_token: input.attending ? invitation.qr_token : null,
+            status: "responded",
           },
           transactionId: transaction.$id,
         });
