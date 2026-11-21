@@ -123,9 +123,21 @@ export function LanguageSwitcher() {
     pathname.startsWith('/invitation');
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlLanguage = params.get('lang');
+
     const saved = window.localStorage.getItem('wedding-language');
 
-    setLanguage(saved === 'am' ? 'am' : 'en');
+    let initialLanguage: SiteLanguage;
+
+    if (urlLanguage === 'am' || urlLanguage === 'en') {
+      initialLanguage = urlLanguage;
+      window.localStorage.setItem('wedding-language', initialLanguage);
+    } else {
+      initialLanguage = saved === 'am' ? 'am' : 'en';
+    }
+
+    setLanguage(initialLanguage);
     setReady(true);
   }, []);
 
@@ -258,7 +270,6 @@ export function LanguageSwitcher() {
               ))}
             </nav>
 
-            {/* Staff link: inside the hamburger menu, below Travel & FAQ */}
             <Link
               href="/staff/login"
               onClick={() => setMenuOpen(false)}
@@ -272,7 +283,6 @@ export function LanguageSwitcher() {
               {language === 'am' ? 'ሰራተኞች' : 'Staff'}
             </Link>
 
-            {/* Existing admin lock icon remains at the bottom */}
             <div className="mt-auto flex justify-end border-t border-gold/20 pt-4">
               <Link
                 href="/admin"
