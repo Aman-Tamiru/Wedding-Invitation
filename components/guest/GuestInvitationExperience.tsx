@@ -4,20 +4,67 @@
 import { useRef, useState } from 'react';
 import InvitationQRCode from '@/components/InvitationQRCode';
 
+export type ThankYouContent = {
+  eyebrowEn: string;
+  eyebrowAm: string;
+  headingEn: string;
+  headingAm: string;
+  messageEn: string;
+  messageAm: string;
+  signatureEn: string;
+  signatureAm: string;
+  familyEn: string;
+  familyAm: string;
+  fontFamily: string;
+  headingSize: number;
+  bodySize: number;
+  paperColor: string;
+  textColor: string;
+  accentColor: string;
+  alignment: 'center' | 'left';
+};
+
 type Props = {
   token: string;
   guestName: string;
   checkedIn: boolean;
   partnerName?: string;
+  previewMode?: boolean;
+  thankYouContent?: ThankYouContent;
+};
+
+const defaultThankYou: ThankYouContent = {
+  eyebrowEn: 'A MESSAGE FROM OUR HEARTS',
+  eyebrowAm: 'ከልባችን የተላከ መልዕክት',
+  headingEn: 'With All Our Love & Gratitude',
+  headingAm: 'በሙሉ ፍቅርና ምስጋናችን',
+  messageEn:
+    'Thank you for celebrating our special day with us. Your presence, love and blessings made our wedding unforgettable. With heartfelt gratitude, we thank you and your families for being part of our beginning.',
+  messageAm:
+    'በዚህ ልዩ ቀናችን ከእኛ ጋር ስለተካፈላችሁ እናመሰግናለን። መገኘታችሁ፣ ፍቅራችሁና በረከታችሁ የሠርጋችንን ቀን የማይረሳ አድርጎታል። የሕይወታችን አዲስ ጅማሬ አካል ስለሆናችሁ ከልብ እናመሰግናለን።',
+  signatureEn: 'With love, Betslot & Amanuel',
+  signatureAm: 'ከፍቅር ጋር፣ ቤትስሎት እና አማኑኤል',
+  familyEn: 'AND OUR FAMILIES',
+  familyAm: 'ከቤተሰቦቻችን ጋር',
+  fontFamily: 'Georgia',
+  headingSize: 30,
+  bodySize: 15,
+  paperColor: '#fffaf3',
+  textColor: '#59494a',
+  accentColor: '#805767',
+  alignment: 'center',
 };
 
 export default function GuestInvitationExperience({
   token,
   guestName,
   checkedIn,
+  previewMode = false,
+  thankYouContent,
 }: Props) {
   const photoInput = useRef<HTMLInputElement>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const thankYou = thankYouContent ?? defaultThankYou;
 
   function handlePhotoSelection(files: FileList | null) {
     if (!files) return;
@@ -28,8 +75,10 @@ export default function GuestInvitationExperience({
   }
 
   function installPage() {
+    if (previewMode) return;
+
     alert(
-      'To add this invitation to your home screen, open your browser menu and choose “Add to Home Screen” or “Install App”.\n\nይህንን ግብዣ ወደ ስልክዎ ዋና ገጽ ለመጨመር የብራውዘሩን ሜኑ ከፍተው “Add to Home Screen” ወይም “Install App” የሚለውን ይምረጡ።'
+      'To add this invitation to your home screen, open your browser menu and choose “Add to Home Screen” or “Install App”.'
     );
   }
 
@@ -83,7 +132,7 @@ export default function GuestInvitationExperience({
           <div className="guest-event-details">
             <div>
               <strong>19 November 2028</strong>
-              <span>እሑድ፣ ኖቬምበር 19፣ 2028</span>
+              <span>እሁድ፣ ኖቬምበር 19፣ 2028</span>
             </div>
             <div>
               <strong>8:00 PM</strong>
@@ -103,7 +152,7 @@ export default function GuestInvitationExperience({
         <section className="guest-glass-panel guest-pass-panel">
           <div className="guest-panel-heading">
             <span>YOUR PERSONAL ENTRANCE PASS</span>
-            <span>የእርስዎ የግል መግቢያ ትኬት</span>
+            <span>የእርስዎ የመግቢያ ትኬት</span>
           </div>
 
           <p className="guest-section-copy">
@@ -142,8 +191,7 @@ export default function GuestInvitationExperience({
             Your photographs will help us remember every beautiful moment.
             We would love to see the memories you captured.
             <span>
-              የእርስዎ ፎቶዎች እያንዳንዱን ውብ ቅጽበት እንድናስታውስ ይረዱናል።
-              ያነሷቸውን የሠርጋችን ትዝታዎች እንድታጋሩን እንፈልጋለን።
+              የእርስዎ ፎቶዎች የሠርጋችንን ትዝታዎች እንድናስታውስ ይረዱናል።
             </span>
           </p>
 
@@ -153,12 +201,14 @@ export default function GuestInvitationExperience({
             type="file"
             accept="image/jpeg,image/png,image/webp"
             multiple
+            disabled={previewMode}
             onChange={(event) => handlePhotoSelection(event.target.files)}
           />
 
           <button
             className="guest-upload-button"
             type="button"
+            disabled={previewMode}
             onClick={() => photoInput.current?.click()}
           >
             <span className="guest-upload-icon" aria-hidden="true">
@@ -174,24 +224,12 @@ export default function GuestInvitationExperience({
 
           {selectedPhotos.length > 0 && (
             <div className="guest-photo-selection">
-              <strong>
-                {selectedPhotos.length} photo(s) selected
-                <span>{selectedPhotos.length} ፎቶዎች ተመርጠዋል</span>
-              </strong>
+              <strong>{selectedPhotos.length} photo(s) selected</strong>
               <ul>
                 {selectedPhotos.map((file, index) => (
                   <li key={`${file.name}-${index}`}>{file.name}</li>
                 ))}
               </ul>
-              <p>
-                Your photos are selected on this device. Online submission
-                will be enabled when the private wedding gallery storage is
-                connected.
-                <span>
-                  ፎቶዎችዎ ተመርጠዋል። ወደ የሠርጉ የግል የፎቶ ማህደር መላክ የሚቻለው
-                  የፎቶ ማከማቻው ሲገናኝ ነው።
-                </span>
-              </p>
             </div>
           )}
         </section>
@@ -199,40 +237,75 @@ export default function GuestInvitationExperience({
         <section className="guest-scroll-section">
           <div className="guest-scroll">
             <div className="guest-scroll-top" />
-            <div className="guest-scroll-paper">
-              <p className="guest-scroll-kicker">
-                A MESSAGE FROM OUR HEARTS
-                <span>ከልባችን የተላከ መልዕክት</span>
+            <div
+              className="guest-scroll-paper"
+              style={{
+                backgroundColor: thankYou.paperColor,
+                color: thankYou.textColor,
+                textAlign: thankYou.alignment,
+                fontFamily: thankYou.fontFamily,
+              }}
+            >
+              <p
+                className="guest-scroll-kicker"
+                style={{ color: thankYou.accentColor }}
+              >
+                {thankYou.eyebrowEn}
+                <span>{thankYou.eyebrowAm}</span>
               </p>
 
-              <h2>With All Our Love &amp; Gratitude</h2>
-              <h3>በሙሉ ፍቅርና ምስጋናችን</h3>
+              <h2
+                style={{
+                  color: thankYou.accentColor,
+                  fontFamily: thankYou.fontFamily,
+                  fontSize: `${thankYou.headingSize}px`,
+                }}
+              >
+                {thankYou.headingEn}
+              </h2>
+              <h3
+                style={{
+                  color: thankYou.accentColor,
+                  fontFamily: thankYou.fontFamily,
+                }}
+              >
+                {thankYou.headingAm}
+              </h3>
 
               <div className="guest-scroll-divider">
-                <span />
+                <span style={{ backgroundColor: thankYou.accentColor }} />
               </div>
 
-              <p className="guest-scroll-message">
-                Thank you for celebrating our special day with us. Your
-                presence, love and blessings made our wedding unforgettable.
-                With heartfelt gratitude, we thank you and your families for
-                being part of our beginning.
+              <p
+                className="guest-scroll-message"
+                style={{
+                  color: thankYou.textColor,
+                  fontSize: `${thankYou.bodySize}px`,
+                }}
+              >
+                {thankYou.messageEn}
               </p>
 
-              <p className="guest-scroll-message guest-scroll-amharic">
-                በዚህ ልዩ ቀናችን ከእኛ ጋር ስለተካፈላችሁ እናመሰግናለን።
-                መገኘታችሁ፣ ፍቅራችሁና በረከታችሁ የሠርጋችንን ቀን የማይረሳ
-                አድርጎታል። የሕይወታችን አዲስ ጅማሬ አካል ስለሆናችሁ ከልብ
-                እናመሰግናለን።
+              <p
+                className="guest-scroll-message guest-scroll-amharic"
+                style={{
+                  color: thankYou.textColor,
+                  fontSize: `${thankYou.bodySize}px`,
+                }}
+              >
+                {thankYou.messageAm}
               </p>
 
-              <p className="guest-scroll-signature">
-                With love, Betslot &amp; Amanuel
-                <span>ከፍቅር ጋር፣ ቤትስሎት እና አማኑኤል</span>
+              <p
+                className="guest-scroll-signature"
+                style={{ color: thankYou.accentColor }}
+              >
+                {thankYou.signatureEn}
+                <span>{thankYou.signatureAm}</span>
               </p>
 
               <p className="guest-scroll-family">
-                AND OUR FAMILIES · ከቤተሰቦቻችን ጋር
+                {thankYou.familyEn} · {thankYou.familyAm}
               </p>
             </div>
             <div className="guest-scroll-bottom" />

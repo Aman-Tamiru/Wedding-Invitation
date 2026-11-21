@@ -22,6 +22,12 @@ type ModuleConfig = {
   fields?: Field[];
   readOnly?: boolean;
   intro?: string;
+  formTitle?: string;
+  amFormTitle?: string;
+  submitLabel?: string;
+  amSubmitLabel?: string;
+  savingLabel?: string;
+  amSavingLabel?: string;
 };
 
 type Row = Record<string, unknown>;
@@ -29,11 +35,7 @@ type Row = Record<string, unknown>;
 const inputClass =
   "w-full rounded-xl border border-[#e6d9d0] bg-white/90 px-4 py-3 text-sm text-[#634d50] outline-none focus:border-[#a77d86]";
 
-export default function AdminModulePage({
-  config,
-}: {
-  config: ModuleConfig;
-}) {
+export default function AdminModulePage({ config }: { config: ModuleConfig }) {
   const { language } = useAdminLanguage();
   const am = language === "am";
 
@@ -49,10 +51,7 @@ export default function AdminModulePage({
     setError("");
 
     try {
-      const response = await fetch(config.endpoint, {
-        cache: "no-store",
-      });
-
+      const response = await fetch(config.endpoint, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -69,9 +68,7 @@ export default function AdminModulePage({
 
       setRows(list as Row[]);
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Unable to load this section."
-      );
+      setError(e instanceof Error ? e.message : "Unable to load this section.");
     } finally {
       setLoading(false);
     }
@@ -91,25 +88,18 @@ export default function AdminModulePage({
       const response = await fetch(config.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create_or_update",
-          ...values,
-        }),
+        body: JSON.stringify({ action: "create_or_update", ...values }),
       });
 
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(data.error || "Save failed.");
-      }
+      if (!response.ok) throw new Error(data.error || "Save failed.");
 
       setValues({});
       setNotice(data.message || "Changes saved successfully.");
       await load();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Unable to save changes."
-      );
+      setError(e instanceof Error ? e.message : "Unable to save changes.");
     } finally {
       setSaving(false);
     }
@@ -139,19 +129,13 @@ export default function AdminModulePage({
       )}
 
       {error && (
-        <div
-          role="alert"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800"
-        >
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
           {error}
         </div>
       )}
 
       {notice && (
-        <div
-          role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800"
-        >
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800">
           {notice}
         </div>
       )}
@@ -159,52 +143,33 @@ export default function AdminModulePage({
       {config.fields && config.fields.length > 0 && !config.readOnly && (
         <section className="rounded-[24px] border border-[#eaded3] bg-white/85 p-5 shadow-sm sm:p-7">
           <h2 className="font-serif text-2xl text-[#754e5c]">
-            {am ? "ይዘት ያስገቡ" : "Create Staff Account"}
+            {am
+              ? config.amFormTitle || "ይዘት ያስገቡ"
+              : config.formTitle || "Add Information"}
           </h2>
 
-          <form
-            onSubmit={submit}
-            className="mt-5 grid gap-4 md:grid-cols-2"
-          >
+          <form onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-2">
             {config.fields.map((field) => (
-              <label
-                key={field.name}
-                className="block space-y-2 text-sm font-medium text-[#806e68]"
-              >
-                <span>
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </span>
+              <label key={field.name} className="block space-y-2 text-sm font-medium text-[#806e68]">
+                <span>{field.label}{field.required ? " *" : ""}</span>
 
                 {field.type === "select" ? (
                   <select
                     required={field.required}
                     value={values[field.name] ?? ""}
-                    onChange={(e) =>
-                      setValues((v) => ({
-                        ...v,
-                        [field.name]: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
                     className={inputClass}
                   >
                     <option value="">Select an option</option>
                     {(field.options ?? []).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 ) : field.type === "textarea" ? (
                   <textarea
                     required={field.required}
                     value={values[field.name] ?? ""}
-                    onChange={(e) =>
-                      setValues((v) => ({
-                        ...v,
-                        [field.name]: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
                     placeholder={field.placeholder}
                     rows={4}
                     className={inputClass}
@@ -213,23 +178,10 @@ export default function AdminModulePage({
                   <input
                     required={field.required}
                     type={field.type ?? "text"}
-                    autoComplete={
-                      field.type === "password"
-                        ? "new-password"
-                        : field.name === "email"
-                          ? "email"
-                          : "off"
-                    }
-                    minLength={
-                      field.type === "password" ? 8 : undefined
-                    }
+                    autoComplete={field.type === "password" ? "new-password" : field.name === "email" ? "email" : "off"}
+                    minLength={field.type === "password" ? 8 : undefined}
                     value={values[field.name] ?? ""}
-                    onChange={(e) =>
-                      setValues((v) => ({
-                        ...v,
-                        [field.name]: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
                     placeholder={field.placeholder}
                     className={inputClass}
                   />
@@ -243,7 +195,9 @@ export default function AdminModulePage({
                 disabled={saving}
                 className="rounded-full bg-[#805767] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#6f4858] disabled:opacity-50"
               >
-                {saving ? "Creating account..." : "Create Staff Account"}
+                {saving
+                  ? (am ? config.amSavingLabel || "በመፍጠር ላይ..." : config.savingLabel || "Saving...")
+                  : (am ? config.amSubmitLabel || "አስቀምጥ" : config.submitLabel || "Save Changes")}
               </button>
             </div>
           </form>
@@ -253,14 +207,11 @@ export default function AdminModulePage({
       <section className="rounded-[24px] border border-[#eaded3] bg-white/85 p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-serif text-2xl text-[#754e5c]">
-              Records
-            </h2>
+            <h2 className="font-serif text-2xl text-[#754e5c]">Records</h2>
             <p className="mt-1 text-xs text-[#9a857b]">
               {loading ? "Loading..." : `${rows.length} records`}
             </p>
           </div>
-
           <button
             type="button"
             onClick={() => void load()}
@@ -271,13 +222,9 @@ export default function AdminModulePage({
         </div>
 
         {loading ? (
-          <p className="py-12 text-center text-sm text-[#947e74]">
-            Loading...
-          </p>
+          <p className="py-12 text-center text-sm text-[#947e74]">Loading...</p>
         ) : rows.length === 0 ? (
-          <p className="py-12 text-center text-sm text-[#947e74]">
-            No records are available yet.
-          </p>
+          <p className="py-12 text-center text-sm text-[#947e74]">No records are available yet.</p>
         ) : (
           <div className="mt-5 divide-y divide-[#f0e8e2]">
             {rows.map((row, index) => (
@@ -286,19 +233,12 @@ export default function AdminModulePage({
                 className="flex flex-wrap items-start justify-between gap-3 py-4"
               >
                 <div>
-                  <h3 className="font-medium text-[#694d57]">
-                    {display(row)}
-                  </h3>
+                  <h3 className="font-medium text-[#694d57]">{display(row)}</h3>
                   <p className="mt-1 text-xs text-[#9a857b]">
-                    {[
-                      row.username ? `@${row.username}` : "",
-                      row.email ?? "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {[row.username ? `@${row.username}` : "", row.email ?? ""]
+                      .filter(Boolean).join(" · ")}
                   </p>
                 </div>
-
                 <span className="rounded-full bg-[#f6eee9] px-3 py-1 text-xs text-[#805767]">
                   {String(row.role ?? "Saved")}
                 </span>
